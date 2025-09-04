@@ -54,8 +54,9 @@ class TeamSelect(Select):
 		await interaction.response.defer()
 
 class MakeMatchView(View):
-	def __init__(self):
+	def __init__(self, series: int):
 		super().__init__(timeout=None)
+		self.series = series
 		self.selections = [None, None]
 
 		self.add_item(TeamSelect("Choose Team 1", self, 0))
@@ -70,7 +71,7 @@ class MakeMatchView(View):
 			elif team1 == team2:
 				await interaction.response.send_message("Teams must be different. Pick again.", ephemeral=True)
 			else:
-				bacore.tournament.pair_match(1, team1, team2)
+				bacore.tournament.pair_match(self.series, team1, team2)
 				embed = discord.Embed(title="<:Battle:1411282502248697967> Match Settled ",description=f"**{team1}** will face off against **{team2}**!",color=0xff0000)
 				embed.set_footer(text="May the best team win!")
 				await interaction.response.edit_message(content=None, embed=embed, view=None)
@@ -79,16 +80,17 @@ class MakeMatchView(View):
 
 class Zielc(commands.Bot):
 	def __init__(self):
-		super().__init__(command_prefix="!", intents=discord.Intents.all(), owner_id=1395772991769415780)
+		config = bacore.config.read()
+		super().__init__(command_prefix="!", intents=discord.Intents.all(), owner_id=config["bot"]["owner_id"])
 
 	async def on_ready(self):
-		print(f"Logged in as {self.user}")
+		print(f"Logged in as {self.user.name}")
 		# self.tree.clear_commands(guild=None)
 		# await self.tree.sync()
 		await self.change_presence(status=discord.Status.dnd,
                                activity=discord.Activity(
                                  type=discord.ActivityType.watching,
-                                 name="EntityX"))
+                                 name="You!!."))
 		for guild in self.guilds:
 			self.tree.clear_commands(guild=guild)
 			self.tree.copy_global_to(guild=guild)
@@ -126,13 +128,13 @@ class Commands(commands.Cog):
 	async def restart(self, interaction):
 		await interaction.response.send_message(f"Restarted the server.")
 		babase.quit()
-	
+		
 	@app_commands.command(name="register")
-	@app_commands.describe(name="Your name", account_id="Your account ID")
+	@app_commands.describe(name="Your name", account_id="Your pb-id")
 	async def register(self, interaction, name: str, account_id: str):
 		guild = interaction.guild
 		member = interaction.user
-		role_name = "Participant"
+		role_name = "Tourny Participant"
 
 		role = discord.utils.get(guild.roles, name=role_name)
 		if not role:
@@ -151,11 +153,11 @@ class Commands(commands.Cog):
 	match = app_commands.Group(name="match", description="Match related commands")
 
 	@match.command(name="make")
-	async def make(self, interaction):
+	async def make(self, interaction, series: int = 1):
 		if not bacore.tournament.list_teams():
 			await interaction.response.send_message("Teams unavailable.")
 			return
-		view = MakeMatchView()
+		view = MakeMatchView(series)
 		await interaction.response.send_message("Pick two teams to match:", view=view)
 
 	@match.command(name="delete")
@@ -197,10 +199,11 @@ bot_instance = None
 
 async def start_bot():
     global bot_instance
+    config = bacore.config.read()
     bot_instance = Zielc()
     await bot_instance.add_cog(Commands(bot_instance))
     try:
-        await bot_instance.start("Your bot token here.")
+        await bot_instance.start(config["bot"]["token"])
     except asyncio.CancelledError:
         print("Bot task was cancelled")
     except Exception as e:
@@ -261,7 +264,12 @@ def shutdown():
 # ba_meta export babase.Plugin
 class Start(babase.Plugin):
 	def __init__(self):
-		run()
+		config = bacore.config.read()
+		self.has_run = False
+		if config["bot"]["enable"]:
+			run()
+			self.has_run = True
 	
 	def on_app_shutdown(self):
-		shutdown()
+		if self.has_run:
+			shutdown()

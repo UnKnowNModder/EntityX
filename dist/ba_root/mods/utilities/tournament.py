@@ -21,6 +21,7 @@ class TournamentSession(DualTeamSession):
 	def __init__(self) -> None:
 		super().__init__()
 		self._series: int = 0
+		self._requested_teams = {}
 		self._disqualify_time: int = 15 # minutes
 		self._disqualify_timers: dict = {}
 
@@ -28,13 +29,12 @@ class TournamentSession(DualTeamSession):
 	def on_player_request(self, player: bascenev1.SessionPlayer) -> bool:
 		identifier = player.get_v1_account_id()
 		client = Client(player.inputdevice.client_id, identifier)
-		if not client.is_participant:
+		if bacore.tournament.match and not client.is_participant:
 			client.error("A match is in progress — joining is not allowed.")
 			return False
 		
 		if identifier in self._disqualify_timers:
-			del self._disqualify_timer[identifier]
-		
+			del self._disqualify_timers[identifier]
 		return super().on_player_request(player)
 
 	@override
@@ -46,14 +46,16 @@ class TournamentSession(DualTeamSession):
 		except: pass
 		
 		identifier = self._player_requested_identifiers.get(sessionplayer.id)
+		sessionteam = self._requested_teams[identifier]
 		
 		with self.context:
-			self._disqualify_timers[identifier] = bascenev1.Timer(self._disqualify_time*60, bascenev1.WeakCall(self.disqualify_team, sessionplayer.sessionteam, identifier))
+			self._disqualify_timers[identifier] = bascenev1.Timer(self._disqualify_time*60, bascenev1.WeakCall(self.disqualify_team, sessionteam, identifier))
 
 	def disqualify_team(self, team: bascenev1.SessionTeam, identifier: str) -> None:
 		""" disqualifies a team from the tournament. """
 		# clean up
-		del self._disqualify_timer[identifier]
+		del self._disqualify_timers[identifier]
+		del self._requested_teams[identifier]
 		teams = self.sessionteams
 		winner_team = teams[team.id ^ 1]
 		disqualify_message = "Team {} has been disqualified due to a player leaving — Team {} wins by default".format(team.name, winner_team.name)
@@ -74,6 +76,8 @@ class TournamentSession(DualTeamSession):
 			if not msg.chooser.sessionteam.name == player_team_name:
 				Client(player.inputdevice.client_id).error("Incorrect team — please verify and join your assigned team.")
 				return None
+			# keep track of chooser's team incase we might need to disqualify them.
+			self._requested_teams[player.get_v1_account_id()] = msg.chooser.sessionteam
 			self._on_player_ready(msg.chooser)
 		
 		else:

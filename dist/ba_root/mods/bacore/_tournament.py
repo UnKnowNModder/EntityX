@@ -1,6 +1,6 @@
 """ tournament storage core. """
 from __future__ import annotations
-import os
+import os, secrets, string
 import babase, bascenev1
 from ._storage import Storage
 from ._clients import Client
@@ -20,6 +20,8 @@ class Tournament(Storage):
 
 	def bootstrap(self) -> None:
 		"""creates tournament file."""
+		from . import config
+		self.config = config.read()
 		if not self.path.exists():
 			self.commit([])
 		if not self.results.exists():
@@ -59,17 +61,13 @@ class Tournament(Storage):
 		registration = self.read(self.registration)
 		assert first_team in registration
 		assert second_team in registration
-		match: Match = {}
-		match["series"] = series
-		match["teams"] = []
-		team: Team = {}
-		team["name"] = first_team
-		team["participants"] = registration[first_team]
-		match["teams"].append(team)
-		team: Team = {}
-		team["name"] = second_team
-		team["participants"] = registration[second_team]
-		match["teams"].append(team)
+		match: Match = {
+			"series": series,
+			"teams": [
+				{"name": first_team, "participants": registration[first_team]},
+				{"name": second_team, "participants": registration[second_team]}
+			]
+		}
 		self.insert(match)
 		del registration[first_team]
 		del registration[second_team]
@@ -126,7 +124,7 @@ class Tournament(Storage):
 						success("Your match is about to begin.")
 						babase.apptimer(2.0, self.begin)
 					# clean up.
-					tournament.remove(match)
+					# tournament.remove(match)
 				self.commit(tournament)
 				client.success("You have been successfully confirmed.")
 				return True
@@ -135,23 +133,48 @@ class Tournament(Storage):
 	def declare(self, winner: bascenev1.SessionTeam, message: str) -> None:
 		"""declares a match winner and saves it."""
 		from bacommon.servermanager import ShutdownReason
-		success(message)
-		result = {}
+		success(message + "\nThe match result has been announced to discord.")
+		# clean up
 		self.discard(self.match["id"])
+		result = {}
 		for team in self.match["teams"]:
 			if team["name"] == winner.name:
 				result["winner"] = team["name"]
 				result["members"] = team["participants"]
 				continue
 			result["loser"] = team["name"]
-		# also register the team for next rounds.
+		# also register the winner team for next rounds.
 		self.register(winner.name, result["members"])
 		results = self.read(self.results)
 		results.append(result)
+		self.match.clear()
+		# announce in the server aswell..
+		self.announce_winner(result)
 		self.commit(results, self.results)
 		# it does not hurt to clean-up the server entirely.
-		babase.app.classic.server.shutdown(ShutdownReason.RESTARTING, False)
+		with babase.ContextRef.empty():
+			babase.apptimer(10, babase.app.classic.server._execute_shutdown)
+		# babase.app.classic.server.shutdown(ShutdownReason.RESTARTING, False)
 		
+
+	def announce_winner(self, result: dict) -> None:
+		import requests, datetime
+		""" pushes announcement to webhooks. """
+		WEBHOOK_URL = self.config["tournament"]["webhook_url"]
+		now = (datetime.datetime.now() + datetime.timedelta(hours=5, minutes=30)).strftime("%d %b %Y · %I:%M %p")
+		data = {
+			"embeds": [
+				{
+					"title": "<:winner:1411402836582858752> Match Result",
+					"description": f"{result['winner']} has won the match against {result['loser']}",
+					"color": 0x00ff00,
+					"footer": {
+						"text": f'{now}'
+					}
+				}
+			]
+		}
+		requests.post(WEBHOOK_URL, json=data)
 
 	def begin(self) -> None:
 		"""begins the tournament session."""

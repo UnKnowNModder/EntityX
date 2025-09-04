@@ -15,7 +15,7 @@ class Text:
 			"math", 
 			owner = self.node,
 			attrs = {
-				"input1": (0, 1.3, 0),
+				"input1": (0, 1.38, 0),
 				"operation": "add"
 			}
 		)
@@ -50,4 +50,6 @@ def attach_rank(self, player: bs.Player) -> None:
 @replace_method(playerspaz.PlayerSpaz, "__init__", initial = True)
 def new_init(self,player: bs.Player,*,color: Sequence[float] = (1.0, 1.0, 1.0),highlight: Sequence[float] = (0.5, 0.5, 0.5),character: str = "Spaz",powerups_expire: bool = True):
 	""" modified constructor of PlayerSpaz class. """
-	attach_rank(self, player)
+	config = bacore.config.read()
+	if config["stats"]["enable"]:
+		attach_rank(self, player)

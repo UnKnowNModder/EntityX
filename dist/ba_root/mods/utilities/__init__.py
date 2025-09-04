@@ -2,7 +2,7 @@
 # ba_meta require api 9
 import babase, importlib
 from pathlib import Path
-from .tournament import TournamentSession
+from .tournament import TournamentTransitionActivity
 
 def _load_utilities():
     """automatically imports utility files in the directory."""

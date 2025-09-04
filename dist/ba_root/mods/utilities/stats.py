@@ -29,11 +29,15 @@ def update_stats(stats: bascenev1.Stats) -> None:
 @replace_method(ScoreScreenActivity, "on_begin", initial = True)
 def new_on_begin(self) -> None:
 	""" modified. """
-	update_stats(self._stats)
+	config = bacore.config.read()
+	if config["stats"]["enable"]:
+		update_stats(self._stats)
 
 @replace_method(Map, "__init__", initial = True)
 def new_map_init(*args, **kwargs):
-	bacore.stats.leaderboard()
+	config = bacore.config.read()
+	if config["stats"]["enable"] and config["stats"]["leaderboard"]:
+		bacore.stats.leaderboard()
 
 class RefreshStats(threading.Thread):
 	""" refreshes and sorts the stats for rank. """

@@ -33,8 +33,12 @@ class Roles(Storage):
 			config[Role.BANLIST] = []
 			self.commit(config)
 		
+		from . import config
+		config = config.read()
+		if not config["auth_verification"]["enable"]:
+			return
 		today = datetime.now().date()
-		future_deletion = today + timedelta(days=7)
+		future_deletion = today + timedelta(days=config["auth_verification"]["days"])
 		# check for auth file
 		if self.auth.exists():
 			# exists, we need to check for deletion time.

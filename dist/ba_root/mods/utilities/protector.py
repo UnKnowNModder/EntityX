@@ -30,7 +30,7 @@ class Protector:
 		if session:
 			with session.context:
 				self.runner_loop_timer = bascenev1.timer(
-					1, babase.Call(self.runner_loop), repeat=True
+					1, babase.CallStrict(self.runner_loop), repeat=True
 				)
 
 	def runner_loop(self):

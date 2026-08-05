@@ -49,7 +49,7 @@ class TournamentSession(DualTeamSession):
 		sessionteam = self._requested_teams[identifier]
 		
 		with self.context:
-			self._disqualify_timers[identifier] = bascenev1.Timer(self._disqualify_time*60, bascenev1.WeakCall(self.disqualify_team, sessionteam, identifier))
+			self._disqualify_timers[identifier] = bascenev1.Timer(self._disqualify_time*60, bascenev1.WeakCallStrict(self.disqualify_team, sessionteam, identifier))
 
 	def disqualify_team(self, team: bascenev1.SessionTeam, identifier: str) -> None:
 		""" disqualifies a team from the tournament. """
@@ -127,6 +127,6 @@ class TournamentTransitionActivity(TransitionActivity):
 	
 	@override
 	def end(self, results: Any = None, delay: float = 0.0, force: bool = False) -> None:
-		call = babase.Call(_bascenev1.new_host_session, TournamentSession)
+		call = babase.CallStrict(_bascenev1.new_host_session, TournamentSession)
 		babase.pushcall(call)
 		

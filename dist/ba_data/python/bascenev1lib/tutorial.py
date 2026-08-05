@@ -5,10 +5,8 @@
 # Not too concerned with keeping this old module pretty;
 # don't expect to be revisiting it.
 # pylint: disable=too-many-branches
-# pylint: disable=too-many-statements
 # pylint: disable=too-many-lines
 # pylint: disable=missing-function-docstring, missing-class-docstring
-# pylint: disable=too-many-locals
 # pylint: disable=unused-argument
 
 from __future__ import annotations
@@ -71,8 +69,8 @@ class ButtonPress:
             img = a.pickup_image
             color = a.pickup_image_color
         elif self._button == 'run':
-            call = bs.Call(s.on_run, 1.0)
-            release_call = bs.Call(s.on_run, 0.0)
+            call = bs.CallStrict(s.on_run, 1.0)
+            release_call = bs.CallStrict(s.on_run, 0.0)
             img = None
             color = None
         else:
@@ -97,11 +95,11 @@ class ButtonPress:
             if img is not None:
                 bs.timer(
                     self._delay / 1000.0,
-                    bs.Call(_safesetattr, img, 'color', c_bright),
+                    bs.CallStrict(_safesetattr, img, 'color', c_bright),
                 )
                 bs.timer(
                     self._delay / 1000.0,
-                    bs.Call(_safesetattr, img, 'vr_depth', -30),
+                    bs.CallStrict(_safesetattr, img, 'vr_depth', -30),
                 )
         if self._release:
             if self._delay == 0 and self._release_delay == 0:
@@ -113,11 +111,11 @@ class ButtonPress:
             if img is not None:
                 bs.timer(
                     (self._delay + self._release_delay + 100) / 1000.0,
-                    bs.Call(_safesetattr, img, 'color', color),
+                    bs.CallStrict(_safesetattr, img, 'color', color),
                 )
                 bs.timer(
                     (self._delay + self._release_delay + 100) / 1000.0,
-                    bs.Call(_safesetattr, img, 'vr_depth', -20),
+                    bs.CallStrict(_safesetattr, img, 'vr_depth', -20),
                 )
 
 
@@ -149,7 +147,7 @@ class ButtonRelease:
             img = a.pickup_image
             color = a.pickup_image_color
         elif self._button == 'run':
-            call = bs.Call(s.on_run, 0.0)
+            call = bs.CallStrict(s.on_run, 0.0)
             img = None
             color = None
         else:
@@ -161,11 +159,11 @@ class ButtonRelease:
         if img is not None:
             bs.timer(
                 (self._delay + 100) / 1000.0,
-                bs.Call(_safesetattr, img, 'color', color),
+                bs.CallStrict(_safesetattr, img, 'color', color),
             )
             bs.timer(
                 (self._delay + 100 / 1000.0),
-                bs.Call(_safesetattr, img, 'vr_depth', -20),
+                bs.CallStrict(_safesetattr, img, 'vr_depth', -20),
             )
 
 
@@ -234,7 +232,6 @@ class RemoveGloves:
     def run(self, a: TutorialActivity) -> None:
         # pylint: disable=protected-access
         assert a.current_spaz is not None
-        # noinspection PyProtectedMember
         a.current_spaz._gloves_wear_off()
 
 
@@ -2430,7 +2427,7 @@ class TutorialActivity(bs.Activity[Player, Team]):
         # Otherwise try again in a few seconds.
         else:
             self._read_entries_timer = bs.Timer(
-                3.0, bs.WeakCall(self._read_entries)
+                3.0, bs.WeakCallStrict(self._read_entries)
             )
 
     def _run_next_entry(self) -> None:
@@ -2446,13 +2443,13 @@ class TutorialActivity(bs.Activity[Player, Team]):
             # otherwise just keep going.
             if result is not None:
                 self._entry_timer = bs.Timer(
-                    result / 1000.0, bs.WeakCall(self._run_next_entry)
+                    result / 1000.0, bs.WeakCallStrict(self._run_next_entry)
                 )
                 return
 
         # Done with these entries.. start over soon.
         self._read_entries_timer = bs.Timer(
-            1.0, bs.WeakCall(self._read_entries)
+            1.0, bs.WeakCallStrict(self._read_entries)
         )
 
     def _update_skip_votes(self) -> None:
@@ -2503,15 +2500,17 @@ class TutorialActivity(bs.Activity[Player, Team]):
             for _i in range(6):
                 bs.timer(
                     t / 1000.0,
-                    bs.Call(setattr, self._skip_text, 'color', (1, 0.5, 0.1)),
+                    bs.CallStrict(
+                        setattr, self._skip_text, 'color', (1, 0.5, 0.1)
+                    ),
                 )
                 t += incr
                 bs.timer(
                     t / 1000.0,
-                    bs.Call(setattr, self._skip_text, 'color', (1, 1, 0)),
+                    bs.CallStrict(setattr, self._skip_text, 'color', (1, 1, 0)),
                 )
                 t += incr
-            bs.timer(6.0, bs.WeakCall(self._revert_confirm))
+            bs.timer(6.0, bs.WeakCallStrict(self._revert_confirm))
             return
 
         player.pressed = True
@@ -2547,7 +2546,7 @@ class TutorialActivity(bs.Activity[Player, Team]):
                 bs.InputType.BOMB_PRESS,
                 bs.InputType.PICK_UP_PRESS,
             ),
-            bs.Call(self._player_pressed_button, player),
+            bs.CallStrict(self._player_pressed_button, player),
         )
 
     @override

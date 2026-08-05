@@ -1,6 +1,7 @@
 # Released under the MIT License. See LICENSE for details.
 #
 """Defines Activity class."""
+
 from __future__ import annotations
 
 import weakref
@@ -9,18 +10,14 @@ from typing import TYPE_CHECKING
 
 import babase
 import _bascenev1
-from bascenev1._dependency import DependencyComponent
 from bascenev1._messages import UNHANDLED
 
-
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Self
     import bascenev1
 
 
-class Activity[PlayerT: bascenev1.Player, TeamT: bascenev1.Team](
-    DependencyComponent
-):
+class Activity[PlayerT: bascenev1.Player, TeamT: bascenev1.Team]:
     """Units of execution wrangled by a :class:`bascenev1.Session`.
 
     Examples of activities include games, score-screens, cutscenes, etc.
@@ -192,7 +189,7 @@ class Activity[PlayerT: bascenev1.Player, TeamT: bascenev1.Team](
             session = self._session()
             if session is not None:
                 babase.pushcall(
-                    babase.Call(
+                    babase.CallStrict(
                         session.transitioning_out_activity_was_freed,
                         self.can_show_ad_on_death,
                     )
@@ -286,7 +283,7 @@ class Activity[PlayerT: bascenev1.Player, TeamT: bascenev1.Team](
             ref = weakref.ref(self)
             self._activity_death_check_timer = babase.AppTimer(
                 5.0,
-                babase.Call(self._check_activity_death, ref, [0]),
+                babase.CallStrict(self._check_activity_death, ref, [0]),
                 repeat=True,
             )
 
@@ -722,7 +719,7 @@ class Activity[PlayerT: bascenev1.Player, TeamT: bascenev1.Team](
 
     @classmethod
     def _check_activity_death(
-        cls, activity_ref: weakref.ref[Activity], counter: list[int]
+        cls, activity_ref: weakref.ref[Self], counter: list[int]
     ) -> None:
         """Sanity check to make sure an Activity was destroyed properly.
 

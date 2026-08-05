@@ -30,7 +30,6 @@ class TournamentButton:
         on_pressed: Callable[[TournamentButton], None],
     ) -> None:
         # pylint: disable=too-many-positional-arguments
-        # pylint: disable=too-many-statements
         self._r = 'coopSelectWindow'
         sclx = 300
         scly = 195.0
@@ -52,7 +51,7 @@ class TournamentButton:
             label='',
             button_type='square',
             autoselect=True,
-            on_activate_call=bui.WeakCall(self._pressed),
+            on_activate_call=bui.WeakCallStrict(self._pressed),
         )
         bui.widget(
             edit=btn,
@@ -60,6 +59,8 @@ class TournamentButton:
             show_buffer_top=50,
             show_buffer_left=400,
             show_buffer_right=200,
+            # We handle reselection manually for these so no ids.
+            allow_preserve_selection=False,
         )
         if select:
             bui.containerwidget(
@@ -320,7 +321,7 @@ class TournamentButton:
             selectable=True,
             click_activate=True,
             autoselect=True,
-            on_activate_call=bui.WeakCall(self._show_leader),
+            on_activate_call=bui.WeakCallStrict(self._show_leader),
             size=(170 / 1.4, 40),
             h_align='center',
             text='-',
@@ -331,6 +332,11 @@ class TournamentButton:
             color=value_color,
             flatness=1.0,
         )
+        # We handle reselection manually for these so no ids.
+        bui.widget(
+            edit=self.current_leader_name_text, allow_preserve_selection=False
+        )
+
         self.current_leader_score_text = bui.textwidget(
             parent=parent,
             draw_controller=btn,
@@ -355,8 +361,10 @@ class TournamentButton:
             autoselect=True,
             up_widget=self.current_leader_name_text,
             text_scale=0.6,
-            on_activate_call=bui.WeakCall(self._show_scores),
+            on_activate_call=bui.WeakCallStrict(self._show_scores),
         )
+        # We handle reselection manually for these so no ids.
+        bui.widget(edit=self.more_scores_button, allow_preserve_selection=False)
         bui.widget(
             edit=self.current_leader_name_text,
             down_widget=self.more_scores_button,
@@ -402,7 +410,7 @@ class TournamentButton:
             flatness=1.0,
         )
         self._lock_update_timer = bui.AppTimer(
-            1.03, bui.WeakCall(self._update_lock_state), repeat=True
+            1.03, bui.WeakCallStrict(self._update_lock_state), repeat=True
         )
 
     def _pressed(self) -> None:
@@ -446,6 +454,10 @@ class TournamentButton:
 
     def _update_lock_state(self) -> None:
 
+        # no-op if our widget is dead.
+        if not self.button:
+            return
+
         if self.game is None:
             return
 
@@ -472,8 +484,8 @@ class TournamentButton:
         )
 
     def update_for_data(self, entry: dict[str, Any]) -> None:
-        """Update for new incoming data."""
         # pylint: disable=too-many-statements
+        """Update for new incoming data."""
         # pylint: disable=too-many-locals
         # pylint: disable=too-many-branches
 
@@ -497,7 +509,7 @@ class TournamentButton:
         x_offs2c = x_offs2 + 50
 
         # Fetch prize range and trophy strings.
-        (pr1, pv1, pr2, pv2, pr3, pv3) = classic.get_tournament_prize_strings(
+        pr1, pv1, pr2, pv2, pr3, pv3 = classic.get_tournament_prize_strings(
             entry, include_tickets=False
         )
 

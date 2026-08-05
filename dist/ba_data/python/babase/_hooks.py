@@ -9,6 +9,7 @@ until it broke at runtime. By instead defining such snippets here and then
 capturing references to them all at launch it is possible to allow linting
 and type-checking magic to happen and most issues will be caught immediately.
 """
+
 # (most of these are self-explanatory)
 # pylint: disable=missing-function-docstring
 from __future__ import annotations
@@ -42,7 +43,7 @@ def get_v2_account_id() -> str | None:
             if account is not None:
                 accountid = account.accountid
                 # (Avoids mypy complaints when plus is not present)
-                assert isinstance(accountid, (str, type(None)))
+                assert isinstance(accountid, str | None)
                 return accountid
         return None
     except Exception:
@@ -350,6 +351,20 @@ def implicit_sign_out(login_type_str: str) -> None:
     )
 
 
+def discord_auth_received(refresh_token: str, discord_user_id: str) -> None:
+    """Forward a Discord OAuth2 refresh token to the account subsystem.
+
+    Called from native on initial Discord sign-in and on each
+    successful ``RefreshToken`` rotation. Empty strings are treated as
+    None (signal to clear stored state).
+    """
+    assert _babase.app.plus is not None
+    _babase.app.plus.accounts.on_discord_auth_received(
+        refresh_token=refresh_token if refresh_token else None,
+        discord_user_id=discord_user_id if discord_user_id else None,
+    )
+
+
 def login_adapter_get_sign_in_token_response(
     login_type_str: str, attempt_id_str: str, result_str: str
 ) -> None:
@@ -365,6 +380,17 @@ def login_adapter_get_sign_in_token_response(
     adapter = _babase.app.plus.accounts.login_adapters[login_type]
     assert isinstance(adapter, LoginAdapterNative)
     adapter.on_sign_in_complete(attempt_id=attempt_id, result=result)
+
+
+def discord_sign_in_token_response(
+    attempt_id_str: str, result_str: str
+) -> None:
+    """Discord explicit sign-in completed; forward to the pending attempt."""
+    from babase._login import on_discord_sign_in_token_response
+
+    attempt_id = int(attempt_id_str)
+    result = None if result_str == '' else result_str
+    on_discord_sign_in_token_response(attempt_id=attempt_id, result=result)
 
 
 def show_client_too_old_error() -> None:
@@ -461,3 +487,86 @@ def copy_dev_console_history() -> None:
     _babase.clipboard_set_text('\n'.join(lines))
     _babase.screenmessage(Lstr(resource='copyConfirmText'), color=(0, 1, 0))
     _babase.getsimplesound('gunCocking').play()
+
+
+def start_native_repl() -> bool:
+    """Called when the native Python REPL is starting up."""
+    from babase._logging import balog
+
+    try:
+        _do_start_native_repl()
+        return True
+    except Exception:
+        balog.warning('Unable to start native repl; will fall back to legacy.')
+    return False
+
+
+def _do_start_native_repl() -> None:
+    import sys
+    import importlib
+    import readline
+    import rlcompleter
+
+    from efro.terminal import Clr
+    from babase._logging import balog
+
+    main_globals = sys.modules['__main__'].__dict__
+
+    default_imports = _babase.app.get_convenience_imports()
+    for module_name, alias in default_imports.items():
+        try:
+            mod = importlib.import_module(module_name)
+            if alias is not None:
+                main_globals[alias] = mod
+        except Exception:
+            balog.exception('Error in convenience import of %s.', module_name)
+
+    if default_imports:
+        parts = [
+            f'{name} as {alias}' if alias is not None else name
+            for name, alias in default_imports.items()
+        ]
+        sep = ', '
+        print(
+            f'{Clr.SBLK}Convenience Imports: {sep.join(parts)}{Clr.RST}',
+            file=sys.stderr,
+        )
+
+    readline.set_completer(rlcompleter.Completer(main_globals).complete)
+    readline.parse_and_bind('tab: complete')
+
+
+def v2_auth_request(global_app_instance_id: str) -> None | tuple[bool, str]:
+    """Kick off or process v2 auth requests.
+
+    Return None if no results or (success, error/token)
+    """
+    assert _babase.app.plus is not None
+    out: None | tuple[bool, str] = _babase.app.plus.accounts.auth_request(
+        global_app_instance_id
+    )
+    return out
+
+
+def v2_auth_data(
+    token: str,
+) -> None | tuple[str, str, dict, list[str] | None]:
+    """Look up autheneticated v2 account data via a token."""
+    assert _babase.in_logic_thread()
+
+    classic = _babase.app.classic
+    if classic is None:
+        return None
+
+    now = time.monotonic()
+    authdata = classic.v2_auth_datas.get(token)
+    if authdata is None or authdata.expire_time <= now:
+        return None
+
+    # Success!
+    return (
+        authdata.account_id,
+        authdata.account_tag,
+        authdata.player_profiles,
+        authdata.classic_purchases,
+    )

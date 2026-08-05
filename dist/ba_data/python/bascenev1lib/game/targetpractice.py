@@ -284,7 +284,6 @@ class Target(bs.Actor):
 
     def do_hit_at_position(self, pos: Sequence[float], player: Player) -> bool:
         """Handle a bomb hit at the given position."""
-        # pylint: disable=too-many-statements
         activity = self.activity
 
         # Ignore hits if the game is over or if we've already been hit
@@ -398,6 +397,6 @@ class Target(bs.Actor):
                 1,
                 {0.9: self._nodes[2].size, 1.1: [0.0]},
             )
-            bs.timer(1.1, bs.Call(self.handlemessage, bs.DieMessage()))
+            bs.timer(1.1, bs.CallStrict(self.handlemessage, bs.DieMessage()))
 
         return bullseye

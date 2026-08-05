@@ -1,6 +1,7 @@
 # Released under the MIT License. See LICENSE for details.
 #
 """Functionality related to teams sessions."""
+
 from __future__ import annotations
 
 import copy
@@ -14,11 +15,15 @@ import _bascenev1
 from bascenev1._session import Session
 
 if TYPE_CHECKING:
-    from typing import Any, Sequence
+    from typing import Any
 
     import bascenev1
 
+#: Default RGB colors for the two teams in a :class:`MultiTeamSession`,
+#: used when a session doesn't specify its own.
 DEFAULT_TEAM_COLORS = ((0.1, 0.25, 1.0), (1.0, 0.25, 0.2))
+
+#: Default display names for the two teams in a :class:`MultiTeamSession`.
 DEFAULT_TEAM_NAMES = ('Blue', 'Red')
 
 
@@ -53,11 +58,7 @@ class MultiTeamSession(Session):
             team_names = None
             team_colors = None
 
-        # print('FIXME: TEAM BASE SESSION WOULD CALC DEPS.')
-        depsets: Sequence[bascenev1.DependencySet] = []
-
         super().__init__(
-            depsets,
             team_names=team_names,
             team_colors=team_colors,
             min_players=1,

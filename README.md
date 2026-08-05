@@ -1,14 +1,10 @@
 # Bombsquad Server Scripts
 it's a modified version server scripts
 it has a few features and utilities described below.
-- script version: 1.7.48
+- script version: 1.7.63
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Chat-7289DA?style=for-the-badge&logo=discord&logoColor=white&labelColor=7289DA)](https://discord.gg/yrYqbSU7wT)
-
-## ⚙️ Installation
-```git clone https://github.com/UnKnowNModder/EntityXScript.git && cd EntityXScript && git checkout dev && python3 -m pip install -U discord.py --target /home/sanju/EntityXScript/dist/ba_data/python-site-packages && chmod +x ballisticakit_server dist/ballisticakit_headless
-```
 
 ## Features:
 - has important commands

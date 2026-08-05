@@ -23,7 +23,6 @@ class TestingWindow(bui.MainWindow):
         transition: str | None = 'in_right',
         origin_widget: bui.Widget | None = None,
     ):
-        # pylint: disable=too-many-locals
         assert bui.app.classic is not None
         uiscale = bui.app.ui_v1.uiscale
         self._width = 1200 if uiscale is bui.UIScale.SMALL else 600
@@ -171,7 +170,9 @@ class TestingWindow(bui.MainWindow):
                 left_widget=self._back_button,
                 button_type='square',
                 label='-',
-                on_activate_call=bui.Call(self._on_minus_press, entry['name']),
+                on_activate_call=bui.CallStrict(
+                    self._on_minus_press, entry['name']
+                ),
             )
             if i == 0:
                 bui.widget(edit=btn, up_widget=self._back_button)
@@ -192,7 +193,9 @@ class TestingWindow(bui.MainWindow):
                 repeat=True,
                 button_type='square',
                 label='+',
-                on_activate_call=bui.Call(self._on_plus_press, entry['name']),
+                on_activate_call=bui.CallStrict(
+                    self._on_plus_press, entry['name']
+                ),
             )
             if i == 0:
                 bui.widget(edit=btn, up_widget=self._back_button)

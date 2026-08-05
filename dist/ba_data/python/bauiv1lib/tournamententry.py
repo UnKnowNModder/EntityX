@@ -7,8 +7,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, override
 
-from bauiv1lib.popup import PopupWindow
+from bacommon.analytics import ClassicAnalyticsEvent
 import bauiv1 as bui
+
+from bauiv1lib.popup import PopupWindow
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -28,10 +30,8 @@ class TournamentEntryWindow(PopupWindow):
         offset: tuple[float, float] = (0.0, 0.0),
         on_close_call: Callable[[], Any] | None = None,
     ):
-        # pylint: disable=too-many-positional-arguments
-        # pylint: disable=too-many-locals
-        # pylint: disable=too-many-branches
         # pylint: disable=too-many-statements
+        # pylint: disable=too-many-positional-arguments
 
         from bauiv1lib.coop.tournamentbutton import USE_ENTRY_FEES
 
@@ -39,6 +39,7 @@ class TournamentEntryWindow(PopupWindow):
         assert bui.app.plus
         bui.set_analytics_screen('Tournament Entry Window')
 
+        self._idprefix = bui.app.ui_v1.new_id_prefix('tournamententry')
         self._tournament_id = tournament_id
         self._tournament_info = bui.app.classic.accounts.tournament_info[
             self._tournament_id
@@ -126,15 +127,15 @@ class TournamentEntryWindow(PopupWindow):
 
         self._cancel_button = bui.buttonwidget(
             parent=self.root_widget,
+            id=f'{self._idprefix}|cancel',
             position=(40, self._height - 34),
             size=(60, 60),
             scale=0.5,
-            label='',
+            label=bui.charstr(bui.SpecialChar.CLOSE),
+            textcolor=(1, 1, 1),
             color=bg_color,
             on_activate_call=self._on_cancel,
             autoselect=True,
-            icon=bui.gettexture('crossOut'),
-            iconscale=1.2,
         )
 
         self._title_text = bui.textwidget(
@@ -146,12 +147,12 @@ class TournamentEntryWindow(PopupWindow):
             scale=0.6,
             text=bui.Lstr(resource='tournamentEntryText'),
             maxwidth=180,
-            # color=(1, 1, 1, 0.4),
             color=bui.app.ui_v1.title_color,
         )
 
         btn = self._pay_with_tickets_button = bui.buttonwidget(
             parent=self.root_widget,
+            id=f'{self._idprefix}|paywithtickets',
             position=(30 + x_offs, 60 + off_p),
             autoselect=True,
             button_type='square',
@@ -198,6 +199,7 @@ class TournamentEntryWindow(PopupWindow):
         if self._do_ad_btn:
             btn = self._pay_with_ad_btn = bui.buttonwidget(
                 parent=self.root_widget,
+                id=f'{self._idprefix}|paywithad',
                 position=(190, 60 + off_p),
                 autoselect=True,
                 button_type='square',
@@ -276,6 +278,7 @@ class TournamentEntryWindow(PopupWindow):
         if self._do_practice:
             self._practice_button = bui.buttonwidget(
                 parent=self.root_widget,
+                id=f'{self._idprefix}|practice',
                 position=btn_pos,
                 autoselect=True,
                 size=btn_size,
@@ -358,7 +361,7 @@ class TournamentEntryWindow(PopupWindow):
         self._fg_state = bui.app.fg_state
         self._running_query = False
         self._update_timer = bui.AppTimer(
-            1.0, bui.WeakCall(self._update), repeat=True
+            1.0, bui.WeakCallStrict(self._update), repeat=True
         )
         self._update()
         self._restore_state()
@@ -430,7 +433,9 @@ class TournamentEntryWindow(PopupWindow):
                         else 'retry entry window'
                     )
                 },
-                callback=bui.WeakCall(self._on_tournament_query_response),
+                callback=bui.WeakCallPartial(
+                    self._on_tournament_query_response
+                ),
             )
             self._last_query_time = bui.apptime()
             self._running_query = True
@@ -584,6 +589,13 @@ class TournamentEntryWindow(PopupWindow):
             return
         self._launched = True
         launched = False
+
+        bui.app.analytics.submit_event(
+            ClassicAnalyticsEvent(
+                ClassicAnalyticsEvent.EventType.START_TOURNEY_COOP_SESSION,
+                extra=self._tournament_info.get('game'),
+            )
+        )
 
         # If they gave us an existing, non-consistent practice activity,
         # just restart it.
@@ -748,7 +760,7 @@ class TournamentEntryWindow(PopupWindow):
             assert bui.app.plus is not None
             bui.app.plus.ads.show_ad_2(
                 'tournament_entry',
-                on_completion_call=bui.WeakCall(self._on_ad_complete),
+                on_completion_call=bui.WeakCallPartial(self._on_ad_complete),
             )
 
     def _on_practice_press(self) -> None:

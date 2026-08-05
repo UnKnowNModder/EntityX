@@ -491,7 +491,7 @@ class EliminationGame(bs.TeamGameActivity[Player, Team]):
         """Spawn a player (override)."""
         actor = self.spawn_player_spaz(player, self._get_spawn_point(player))
         if not self._solo_mode:
-            bs.timer(0.3, bs.Call(self._print_lives, player))
+            bs.timer(0.3, bs.CallStrict(self._print_lives, player))
 
         # If we have any icons, update their state.
         for icon in player.icons:
@@ -516,21 +516,6 @@ class EliminationGame(bs.TeamGameActivity[Player, Team]):
 
     @override
     def on_player_leave(self, player: Player) -> None:
-        if player.lives > 0:
-            members = [tplayer for tplayer in player.team.players if tplayer != player]
-            lives = player.lives
-            count = len(members)
-            if count > 0:
-                idx = 0
-                distributed = 0
-                while distributed < lives:
-                    member = members[idx % count]
-                    if member.is_alive():
-                        member.lives += 1
-                        distributed += 1
-                    idx += 1
-            if len(self._get_living_teams()) < 2:
-                self.end_game()
         # (Pylint Bug?) pylint: disable=missing-function-docstring
         super().on_player_leave(player)
         player.icons = []
@@ -593,8 +578,9 @@ class EliminationGame(bs.TeamGameActivity[Player, Team]):
 
             # In solo, put ourself at the back of the spawn order.
             if self._solo_mode:
-                player.team.spawn_order.remove(player)
-                player.team.spawn_order.append(player)
+                if player in player.team.spawn_order:
+                    player.team.spawn_order.remove(player)
+                    player.team.spawn_order.append(player)
 
     def _update(self) -> None:
         if self._solo_mode:

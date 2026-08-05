@@ -28,7 +28,6 @@ class GameButton:
         row: str,
     ):
         # pylint: disable=too-many-positional-arguments
-        # pylint: disable=too-many-statements
         # pylint: disable=too-many-locals
 
         assert bui.app.classic is not None
@@ -71,7 +70,7 @@ class GameButton:
             on_activate_call=self._on_press,
             button_type='square',
             autoselect=True,
-            on_select_call=bui.Call(window.sel_change, row, game),
+            on_select_call=bui.CallStrict(window.sel_change, row, game),
         )
         bui.widget(
             edit=btn,
@@ -79,6 +78,8 @@ class GameButton:
             show_buffer_top=50,
             show_buffer_left=400,
             show_buffer_right=200,
+            # We handle reselection manually for these so no ids.
+            allow_preserve_selection=False,
         )
         if select:
             bui.containerwidget(
@@ -186,7 +187,7 @@ class GameButton:
         # give a quasi-random update increment to spread the load..
         self._update_timer = bui.AppTimer(
             0.001 * (900 + random.randrange(200)),
-            bui.WeakCall(self._update),
+            bui.WeakCallStrict(self._update),
             repeat=True,
         )
         self._update()

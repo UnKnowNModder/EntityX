@@ -1,3 +1,6 @@
+# EfroSynced from ballistica-internal.
+# EFRO_SYNC_HASH=108254279322450116963957420935737493125
+#
 # Released under the MIT License. See LICENSE for details.
 #
 # pylint: disable=too-many-lines
@@ -9,6 +12,7 @@ import os
 import time
 import random
 import weakref
+import threading
 import functools
 import datetime
 from typing import TYPE_CHECKING, cast, overload
@@ -26,6 +30,11 @@ class _EmptyObj:
 # one and return it for all cases that need an empty weak-ref.
 _g_empty_weak_ref = weakref.ref(_EmptyObj())
 assert _g_empty_weak_ref() is None
+
+# State for do_once() and do_once_periodically().
+_g_do_once_counts: dict[str, int] = {}
+_g_do_once_periodically_state: dict[str, tuple[int, int]] = {}
+_g_do_once_lock = threading.Lock()
 
 # Note to self: adding a special form of partial for when we don't need
 # to pass further args/kwargs (which I think is most cases). Even though
@@ -158,6 +167,20 @@ def utc_this_minute() -> datetime.datetime:
         day=now.day,
         hour=now.hour,
         minute=now.minute,
+        tzinfo=now.tzinfo,
+    )
+
+
+def utc_this_second() -> datetime.datetime:
+    """Get offset-aware beginning of current second in the utc time zone."""
+    now = datetime.datetime.now(datetime.UTC)
+    return datetime.datetime(
+        year=now.year,
+        month=now.month,
+        day=now.day,
+        hour=now.hour,
+        minute=now.minute,
+        second=now.second,
         tzinfo=now.tzinfo,
     )
 
@@ -337,7 +360,6 @@ class DispatchMethodWrapper[ArgT, RetT]():
     registry: dict[Any, Callable]
 
 
-# noinspection PyProtectedMember,PyTypeHints
 def dispatchmethod[ArgT, RetT](
     func: Callable[[Any, ArgT], RetT],
 ) -> DispatchMethodWrapper[ArgT, RetT]:
@@ -349,36 +371,39 @@ def dispatchmethod[ArgT, RetT](
     """
     from functools import singledispatch, update_wrapper
 
-    origwrapper: Any = singledispatch(func)
-
-    # Pull this out so hopefully origwrapper can die,
-    # otherwise we reference origwrapper in our wrapper.
-    dispatch = origwrapper.dispatch
-
-    # All we do here is recreate the end of functools.singledispatch
-    # where it returns a wrapper except instead of the wrapper using the
-    # first arg to the function ours uses the second (to skip 'self').
-    # This was made against Python 3.7; we should probably check up on
-    # this in later versions in case anything has changed.
-    # (or hopefully they'll add this functionality to their version)
-    # NOTE: sounds like we can use functools singledispatchmethod in 3.8
-    def wrapper(*args: Any, **kw: Any) -> Any:
-        if not args or len(args) < 2:
-            raise TypeError(
-                f'{funcname} requires at least ' '2 positional arguments'
-            )
-
-        return dispatch(args[1].__class__)(*args, **kw)
-
-    funcname = getattr(func, '__name__', 'dispatchmethod method')
-    wrapper.register = origwrapper.register  # type: ignore
-    wrapper.dispatch = dispatch  # type: ignore
-    wrapper.registry = origwrapper.registry  # type: ignore
     # pylint: disable=protected-access
-    wrapper._clear_cache = origwrapper._clear_cache  # type: ignore
-    update_wrapper(wrapper, func)
-    # pylint: enable=protected-access
-    return cast(DispatchMethodWrapper, wrapper)
+    # pylint: disable=no-else-return
+
+    if TYPE_CHECKING:
+        return cast(DispatchMethodWrapper, None)
+    else:
+        origwrapper: Any = singledispatch(func)
+
+        # Pull this out so hopefully origwrapper can die,
+        # otherwise we reference origwrapper in our wrapper.
+        dispatch = origwrapper.dispatch
+
+        # All we do here is recreate the end of functools.singledispatch
+        # where it returns a wrapper except instead of the wrapper using the
+        # first arg to the function ours uses the second (to skip 'self').
+        # This was made against Python 3.7; we should probably check up on
+        # this in later versions in case anything has changed.
+        # (or hopefully they'll add this functionality to their version)
+        # NOTE: sounds like we can use functools singledispatchmethod in 3.8
+        def wrapper(*args: Any, **kw: Any) -> Any:
+            if not args or len(args) < 2:
+                raise TypeError(
+                    f'{funcname} requires at least ' '2 positional arguments'
+                )
+            return dispatch(args[1].__class__)(*args, **kw)
+
+        funcname = getattr(func, '__name__', 'dispatchmethod method')
+        wrapper.register = origwrapper.register
+        wrapper.dispatch = dispatch
+        wrapper.registry = origwrapper.registry
+        wrapper._clear_cache = origwrapper._clear_cache
+        update_wrapper(wrapper, func)
+        return cast(DispatchMethodWrapper, wrapper)
 
 
 def valuedispatch[ValT, RetT](
@@ -580,7 +605,7 @@ def asserttype_o[T](obj: Any, typ: type[T]) -> T | None:
     failures are not expected. Otherwise use checktype.
     """
     assert isinstance(typ, type), 'only actual types accepted'
-    assert isinstance(obj, (typ, type(None)))
+    assert isinstance(obj, typ | None)
     return obj
 
 
@@ -603,7 +628,7 @@ def checktype_o[T](obj: Any, typ: type[T]) -> T | None:
     on failure. Use asserttype for more efficient (but less safe) equivalent.
     """
     assert isinstance(typ, type), 'only actual types accepted'
-    if not isinstance(obj, (typ, type(None))):
+    if not isinstance(obj, typ | None):
         raise TypeError(f'Expected a {typ} or None; got a {type(obj)}.')
     return obj
 
@@ -629,7 +654,7 @@ def warntype_o[T](obj: Any, typ: type[T]) -> T | None:
     not what is expected.
     """
     assert isinstance(typ, type), 'only actual types accepted'
-    if not isinstance(obj, (typ, type(None))):
+    if not isinstance(obj, typ | None):
         import logging
 
         logging.warning(
@@ -692,6 +717,19 @@ def _compact_id(num: int, chars: str) -> str:
         out += chars[num % base]
         num //= base
     return out[::-1] or '0'
+
+
+def compact_id_lower(num: int) -> str:
+    """Given a positive int, return a compact lowercase string representation.
+
+    Like compact_id() but uses only lowercase letters and digits (base-36),
+    making it safe for use in case-insensitive contexts such as DNS hostnames.
+
+    For n chars this can store values of 36^n.
+
+    Sort order for these ids is the same as the original numbers.
+    """
+    return _compact_id(num, '0123456789abcdefghijklmnopqrstuvwxyz')
 
 
 def human_readable_compact_id(num: int) -> str:
@@ -770,11 +808,26 @@ def unchanging_hostname() -> str:
     import platform
     import subprocess
 
-    # On Mac, this should give the computer name assigned in System Prefs.
+    # On Mac, read the user-set ComputerName directly out of the
+    # SystemConfiguration plist via plutil. This is the same
+    # source-of-truth that ``scutil --get ComputerName`` reads through
+    # configd, but plutil hits the file directly so it's also
+    # resilient to sandbox restrictions on configd access (Claude
+    # Code's sandbox blocks scutil's SCDynamicStore queries, causing
+    # them to return the generic factory default "MacBook Pro").
     if platform.system() == 'Darwin':
         return (
             subprocess.run(
-                ['scutil', '--get', 'ComputerName'],
+                [
+                    'plutil',
+                    '-extract',
+                    'System.System.ComputerName',
+                    'raw',
+                    '-o',
+                    '-',
+                    '/Library/Preferences/SystemConfiguration/'
+                    'preferences.plist',
+                ],
                 check=True,
                 capture_output=True,
             )
@@ -824,7 +877,10 @@ def set_canonical_module_names(module_globals: dict[str, Any]) -> None:
 
 
 def timedelta_str(
-    timeval: datetime.timedelta | float, maxparts: int = 2, decimals: int = 0
+    timeval: datetime.timedelta | float | int,
+    *,
+    maxparts: int = 2,
+    decimals: int = 0,
 ) -> str:
     """Return a simple human readable time string for a length of time.
 
@@ -833,15 +889,15 @@ def timedelta_str(
     Example output:
 
     - ``"23d 1h 2m 32s"`` (with maxparts == 4)
-    - ``"23d 1h"`` (with maxparts == 2)
-    - ``"23d 1.08h"`` (with maxparts == 2 and decimals == 2)
+    - ``"23d 1h"``        (with maxparts == 2)
+    - ``"23d 1.08h"``     (with maxparts == 2 and decimals == 2)
 
     Note that this is hard-coded in English and probably not especially
     performant.
     """
     # pylint: disable=too-many-locals
 
-    if isinstance(timeval, float):
+    if isinstance(timeval, float | int):
         timevalfin = datetime.timedelta(seconds=timeval)
     else:
         timevalfin = timeval
@@ -902,6 +958,7 @@ def timedelta_str(
 
 def ago_str(
     timeval: datetime.datetime,
+    *,
     maxparts: int = 1,
     now: datetime.datetime | None = None,
     decimals: int = 0,
@@ -1008,7 +1065,8 @@ def weighted_choice[T](*args: tuple[T, float]) -> T:
     items: tuple[T]
     weights: tuple[float]
     items, weights = zip(*args)
-    return random.choices(items, weights=weights)[0]
+    val: T = random.choices(items, weights=weights)[0]
+    return val
 
 
 def prune_empty_dirs(prunedir: str) -> None:
@@ -1032,6 +1090,29 @@ def prune_empty_dirs(prunedir: str) -> None:
                 ) from exc
 
 
+async def gather_strip(*coros: Any) -> list[Any]:
+    """asyncio.gather() with return_exceptions=True, traceback-stripped.
+
+    A common cause of reference cycles in async code is
+    asyncio.gather called with return_exceptions=True: each
+    coroutine that raised has its exception stored in the result
+    list with its full __traceback__, which keeps the originating
+    frames alive (see :func:`strip_exception_tracebacks`).
+
+    Use this anywhere you'd use ``gather(..., return_exceptions=True)``.
+    It returns the same list of results, but with exception
+    tracebacks already cleared so callers can log/inspect them
+    without creating a cycle.
+    """
+    import asyncio
+
+    results = await asyncio.gather(*coros, return_exceptions=True)
+    for r in results:
+        if isinstance(r, BaseException):
+            strip_exception_tracebacks(r)
+    return results
+
+
 def strip_exception_tracebacks(exc: BaseException) -> None:
     """Strip tracebacks from exceptions to break reference cycles.
 
@@ -1044,9 +1125,35 @@ def strip_exception_tracebacks(exc: BaseException) -> None:
     garbage collector.
 
     This call strips tracebacks from the provided exception, any
-    exceptions that were active when it was raised, and any it was
-    explicitly raised from, recursively. Be sure you are done using the
-    exception before calling this.
+    exceptions that were active when it was raised, any it was
+    explicitly raised from, and (for :class:`BaseExceptionGroup`)
+    any nested child exceptions, recursively.
+
+    Important: ONLY call this when you are fully done with the
+    exception — typically at the tail end of an ``except`` block,
+    after any logging, reporting, or chaining via ``raise X from
+    Y`` has already happened. The traceback is part of the
+    exception's user-visible diagnostic surface; consumers
+    (including subsequent ``except`` blocks up the stack, log
+    handlers, and code that calls ``traceback.format_exception``)
+    expect it to be intact while the exception is in flight.
+
+    DO NOT call this in places that:
+
+    * Store the exception somewhere a future caller will read it
+      (e.g. attaching it to a response object, queueing it, etc.).
+    * Hand the exception off to a callback or another thread.
+    * Re-raise it (with or without ``from``) after the call —
+      the new exception's ``__cause__``/``__context__`` chain
+      would point at a now-tracebackless exception, so the
+      caller catching the new exception sees a degraded
+      diagnostic.
+
+    The right pattern is "consume, then strip": let the
+    exception flow normally through producers, dispatchers, and
+    chaining points; only call this where you've finished
+    extracting whatever info you need (logging, error-reporting,
+    etc.) and are about to drop the reference.
     """
     seen = set()
     stack = [exc]
@@ -1068,3 +1175,94 @@ def strip_exception_tracebacks(exc: BaseException) -> None:
         cause = getattr(e, '__cause__', None)
         if cause is not None:
             stack.append(cause)
+
+        # Children of a PEP 654 ExceptionGroup.
+        if isinstance(e, BaseExceptionGroup):
+            stack.extend(e.exceptions)
+
+
+def secure_id() -> str:
+    """Generate a 20 char cryptographically secure string.
+
+    Basically what firestore does for its random document ids.
+    If its good enough for firestore its good enough for us.
+    """
+    import secrets
+    import string
+
+    alphabet = string.ascii_letters + string.digits  # 62 chars
+
+    return ''.join(secrets.choice(alphabet) for _ in range(20))
+
+
+def do_once(on_iteration: int = 1) -> bool:
+    """Return True only when this call site is reached for the
+    ``on_iteration``-th time; False on all other calls.
+
+    Useful for one-shot side effects keyed to a specific call count.
+    The count is never reset during process lifetime.
+
+    Example: run something only the first time through::
+
+        if do_once():
+            logging.warning('First time setup.')
+
+    Example: run something only on the 5th time through::
+
+        if do_once(on_iteration=5):
+            logging.warning('Fifth occurrence.')
+    """
+    import inspect
+
+    frame = inspect.currentframe()
+    if frame is not None:
+        frame = frame.f_back
+    if frame is None:
+        return False
+    key = f'{frame.f_code.co_filename}:{frame.f_lineno}'
+    with _g_do_once_lock:
+        count = _g_do_once_counts.get(key, 0) + 1
+        _g_do_once_counts[key] = count
+    return count == on_iteration
+
+
+def do_once_periodically(
+    on_iteration: int = 1,
+    period: datetime.timedelta = datetime.timedelta(hours=1),
+) -> bool:
+    """Return True only when this call site is reached for the
+    ``on_iteration``-th time within the current time-period window.
+
+    The call count resets at the start of each new period. Period boundaries
+    are computed from ``time.monotonic()`` bucketed into fixed-width slices of
+    length ``period``, so the reset is aligned to multiples of the period from
+    the monotonic epoch (not from when the code first runs).
+
+    The ``period`` argument must be the same on every call from a given call
+    site; mixing different values produces undefined behavior.
+
+    Example: log a warning on the 5th occurrence each hour::
+
+        if do_once_periodically(on_iteration=5):
+            logging.warning('Hit 5 times this hour.')
+    """
+    import inspect
+
+    frame = inspect.currentframe()
+    if frame is not None:
+        frame = frame.f_back
+    if frame is None:
+        return False
+    key = f'{frame.f_code.co_filename}:{frame.f_lineno}'
+    period_secs = period.total_seconds()
+    now = time.monotonic()
+    slice_index = int(now / period_secs)
+    with _g_do_once_lock:
+        stored_count, stored_slice = _g_do_once_periodically_state.get(
+            key, (0, slice_index)
+        )
+        if stored_slice != slice_index:
+            stored_count = 0  # new period — reset
+        count = stored_count + 1
+        _g_do_once_periodically_state[key] = (count, slice_index)
+    return count == on_iteration

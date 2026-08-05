@@ -32,6 +32,7 @@ class PopupWindow:
             'menu_store_no_back',
         ] = 'menu_minimal_no_back',
         edge_buffer_scale: float = 1.0,
+        darken_behind: bool = True,
     ):
         # pylint: disable=too-many-locals
         if focus_size is None:
@@ -99,9 +100,10 @@ class PopupWindow:
             claim_outside_clicks=True,
             color=bg_color,
             on_cancel_call=self.on_popup_cancel,
+            darken_behind=darken_behind,
         )
-        # complain if we outlive our root widget
-        bui.uicleanupcheck(self, self.root_widget)
+        # Complain if we outlive our root widget.
+        bui.app.ui_v1.add_ui_cleanup_check(self, self.root_widget)
 
     def on_popup_cancel(self) -> None:
         """Called when the popup is canceled.
@@ -129,8 +131,6 @@ class PopupMenuWindow(PopupWindow):
     ):
         # FIXME: Clean up a bit.
         # pylint: disable=too-many-branches
-        # pylint: disable=too-many-locals
-        # pylint: disable=too-many-statements
         if choices_disabled is None:
             choices_disabled = []
         if choices_display is None:
@@ -195,7 +195,10 @@ class PopupMenuWindow(PopupWindow):
         # Init parent class - this will rescale and reposition things as
         # needed and create our root widget.
         super().__init__(
-            position, size=(self._width, self._height), scale=self._scale
+            position,
+            size=(self._width, self._height),
+            scale=self._scale,
+            darken_behind=False,  # Looks too intense for a menu.
         )
 
         if self._use_scroll:
@@ -229,7 +232,7 @@ class PopupMenuWindow(PopupWindow):
             wdg = bui.textwidget(
                 parent=self._columnwidget,
                 size=(self._width - 40, 28),
-                on_select_call=bui.Call(self._select, index),
+                on_select_call=bui.CallStrict(self._select, index),
                 click_activate=True,
                 color=(
                     (0.5, 0.5, 0.5, 0.5)
@@ -248,6 +251,8 @@ class PopupMenuWindow(PopupWindow):
                 selectable=(not inactive),
                 glow_type='uniform',
             )
+            bui.widget(edit=wdg, allow_preserve_selection=False)
+
             if choice == self._current_choice:
                 bui.containerwidget(
                     edit=self._columnwidget,
@@ -270,7 +275,7 @@ class PopupMenuWindow(PopupWindow):
         if delegate is not None:
             # Call this in a timer so it doesn't interfere with us killing
             # our widgets and whatnot.
-            call = bui.Call(
+            call = bui.CallStrict(
                 delegate.popup_menu_selected_choice, self, self._current_choice
             )
             bui.apptimer(0, call)
@@ -307,6 +312,7 @@ class PopupMenu:
         position: tuple[float, float],
         choices: Sequence[str],
         *,
+        button_id: str | None = None,
         current_choice: str | None = None,
         on_value_change_call: Callable[[str], Any] | None = None,
         opening_call: Callable[[], Any] | None = None,
@@ -319,7 +325,6 @@ class PopupMenu:
         button_size: tuple[float, float] = (160.0, 50.0),
         autoselect: bool = True,
     ):
-        # pylint: disable=too-many-locals
         if choices_disabled is None:
             choices_disabled = []
         if choices_display is None:
@@ -354,6 +359,7 @@ class PopupMenu:
 
         self._button = bui.buttonwidget(
             parent=self._parent,
+            id=button_id,
             position=(self._position[0], self._position[1]),
             autoselect=autoselect,
             size=self._button_size,
@@ -370,7 +376,7 @@ class PopupMenu:
         self._window_widget: bui.Widget | None = None
 
         # Complain if we outlive our button.
-        bui.uicleanupcheck(self, self._button)
+        bui.app.ui_v1.add_ui_cleanup_check(self, self._button)
 
     def _make_popup(self) -> None:
         if not self._button:

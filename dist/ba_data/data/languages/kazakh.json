@@ -4,7 +4,7 @@
     "accountsText": "Аккаунттар",
     "achievementProgressText": "Жетістіктер: ${TOTAL} ішінде ${COUNT} орындалған",
     "campaignProgressText": "Дайындық Прогрессі [Қиын]: ${PROGRESS}",
-    "changeOncePerSeason": "Сен бұны тек әр мезгіл сайын бір рет өзгерте аласың.",
+    "changeOncePerSeason": "Сіз бұны тек әр мезгіл сайын бір рет өзгерте аласыз.",
     "changeOncePerSeasonError": "Бұны қайта өзгерту үшін келесі мезгілге дейін күтуің керексің (${NUM} күн)",
     "createAnAccountText": "Аккаунтты құрау",
     "customName": "Арнайы ат",
@@ -18,7 +18,7 @@
     "linkedAccountsText": "Байланыстырылған аккаунттар:",
     "manageAccountText": "Аккаунт Басқару",
     "nameChangeConfirm": "Аккаунттың атын ${NAME} деп өзгертесіз бе?",
-    "resetProgressConfirmNoAchievementsText": "Бұл сіздің кооперативтегі жетістіктеріңізді қалпына келтіреді және\nжергілікті жазбалар (бірақ сіздің билеттеріңіз емес).\nМұны жоққа шығаруға болмайды. Сен сенімдісің бе?",
+    "resetProgressConfirmNoAchievementsText": "Бұл сіздің кооперативтегі жетістіктеріңізді қалпына келтіреді және\nжергілікті жазбалар (бірақ сіздің билеттеріңіз емес).\nМұны жоққа шығаруға болмайды. Сіз сенімдісіз бе?",
     "resetProgressConfirmText": "Бұл сіздің бірлескен жұмысыңызды,\nжетістіктеріңізді және жергілікті жоғары ұпайларыңызды қалпына келтіреді.\n(бірақ билеттеріңізді емес).\nБұл әрекетті қайтару мүмкін емес. Сіз сенімдісіз бе?",
     "resetProgressText": "Прогресті қалпына келтіру",
     "setAccountName": "Аккаунт атауын орнатыңыз",
@@ -51,10 +51,10 @@
   "achievementText": "Жетістік",
   "achievements": {
     "Boom Goes the Dynamite": {
-      "description": "3 жаман адамды TNT арқылы өлтір",
-      "descriptionComplete": "3 жаман адам TNT арқылы өлді",
-      "descriptionFull": "${LEVEL} деңгейінде TNT көмегімен 3 жаман адамды өлтір",
-      "descriptionFullComplete": "${LEVEL} деңгейінде TNT көмегімен 3 жаман адам өлтірілді",
+      "description": "TNT-мен 3 зұлым адамды өлтіріңіз",
+      "descriptionComplete": "TNT-мен 3 зұлым адамы өлтірді",
+      "descriptionFull": "${LEVEL} деңгейінде TNT көмегімен 3 зұлым адамды өлтір",
+      "descriptionFullComplete": "${LEVEL} деңгейінде TNT көмегімен 3 зұлым адамды өлтірілді",
       "name": "Динамит соқты"
     },
     "Boxer": {
@@ -82,10 +82,10 @@
       "name": "Тегін жүктеуші"
     },
     "Gold Miner": {
-      "description": "Миналармен 6 жаман жігітті өлтіріңіз",
-      "descriptionComplete": "Минамен 6 зұлым жігітті өлтірді",
-      "descriptionFull": "${LEVEL} деңгейінде 6 жаман жігітті минамен өлтіріңіз",
-      "descriptionFullComplete": "${LEVEL} деңгейінде 6 зұлым адамды минамен өлтірді.",
+      "description": "Миналармен 6 зұлым адамды өлтіріңіз",
+      "descriptionComplete": "Миналармен 6 зұлым адамды өлтірді",
+      "descriptionFull": "${LEVEL} деңгейінде миналармен 6 зұлым адамды өлтіріңіз",
+      "descriptionFullComplete": "${LEVEL} деңгейінде миналармен 6 зұлым адамды өлтірді",
       "name": "Алтын өндіруші"
     },
     "Got the Moves": {
@@ -466,6 +466,7 @@
   "configureDeviceInSystemSettingsText": "${DEVICE} құрылғысын Жүйе баптаулары қолданбасында баптауға болады.",
   "configureItNowText": "Қазір жөндеу?",
   "configureText": "Жөндеу",
+  "confirmText": "Растау",
   "connectMobileDevicesWindow": {
     "amazonText": "Amazon Appstore",
     "appStoreText": "App Store",
@@ -973,6 +974,8 @@
     "vrOrientationResetText": "VR бағдарламасын тоқтату.",
     "willTimeOutText": "(Уақытша қуып шығып кетеді)"
   },
+  "inventoryOnlyAvailableOnlineText": "Толығымен заттар тізімі тек онлайн кезінде қолжетімді.",
+  "inventoryOnlyAvailableSignedInText": "Толығымен заттар тізімі тек кіргенде ғана қолжетімді.",
   "inventoryText": "Заттар тізімі",
   "jumpBoldText": "СЕКІРУ",
   "jumpText": "Секіру",
@@ -1379,9 +1382,10 @@
     "charactersText": "Кейіпкерлер",
     "comingSoonText": "Жақын арада...",
     "extrasText": "Қосымша",
+    "featuredText": "Таңдаулы",
     "holidaySpecialText": "Мерекелік жеңілдік",
     "howToSwitchCharactersText": "(\"${SETTINGS}дан -> ${PLAYER_PROFILES}на\" кіріңіз, ойында кейіпкерді таңдау үшін)",
-    "howToUseIconsText": "(глобальдық аккаунтты шығарыңыз (аккаунттан) соларды қолдану үшін)",
+    "howToUseIconsText": "(бұларды қолдану үшін глобалдық аккаунтты (заттар тізімі терезесінде) жасаңыз)",
     "howToUseMapsText": "(осы карталарды топтарда/әркім өз ғанада қолданыңыз)",
     "iconsText": "Жапсырмалар",
     "loadErrorText": "Парақша жүктелмей жатыр.\nИнтернет қосылып тұрғанын тексеріңіз.",
@@ -1398,11 +1402,16 @@
     "salePercentText": "(Жеңілдік ${PERCENT}%)",
     "saleText": "ЖЕҢІЛДІК",
     "searchText": "Іздеу",
+    "starterPackText": "Бастапқы жинақ",
     "teamsFreeForAllGamesText": "Топтық ойын / Әркім өзі ғана",
     "totalWorthText": "*** ${TOTAL_WORTH} құндылығы! ***",
     "upgradeQuestionText": "Жаңарту?",
     "winterSpecialText": "*** ${TOTAL_WORTH} мағынасы! ***",
-    "youOwnThisText": "- сізде ол бар -"
+    "youOwnThisText": "- сізде ол бар -",
+    "yourCharactersText": "Сіздің кейіпкерлеріңіз",
+    "yourIconsText": "Сіздің жапсырмаларыңыз",
+    "yourMapsText": "Сіздің карталарыңыз",
+    "yourMiniGamesText": "Сіздің ойындарыңыз"
   },
   "storeDescriptionText": "8 ойыншылармен ойнайтын ойын!\n\nДостарыңызды жарып жіберіңіз (немесе боттарды) турнирде және шағын ойындарда, ту ұрлау, эпикалық ойындарды ойнайсыз!\n\nӘрі жеңіл қозғалыспенен, ыңғайлы контроллерменен ойыншылар 8 болып кіре алады, және де мобильдағы құрылғыда\n\nЖарғыш Бомбалар\n\nwww.froemling.net/BombSquad қосымша ақпарат осы сайтта.!",
   "storeDescriptions": {
@@ -1690,6 +1699,7 @@
       "Account unlinking successful!": "Аккаунт сәтсіз жалғанды!",
       "Accounts are already linked.": "Аккаунт баяғыда жалғанған.",
       "Ad view could not be verified.\nPlease be sure you are running an official and up-to-date version of the game.": "Жарнаманы қарау расталмады.\nОйынның ресми әрі жаңартылған нұсқасын қолданып жатқаныңызға көз жеткізіңіз.",
+      "An error has occurred.": "Бір қате пайда болды.",
       "An error has occurred; (${ERROR})": "(${ERROR}) қате пайда болды",
       "An error has occurred; please contact support. (${ERROR})": "(${ERROR}) қате пайда болды; қолдау қызметіне хабарласыңыз.",
       "An error has occurred; please contact support@froemling.net.": "Қате туындады; өтінемін, support@froemling.netтен қарап көріңіз.",
@@ -1699,7 +1709,7 @@
       "Can't link 2 accounts of this type.": "2 бірдей аккаунтты жалғауға болмайды.",
       "Can't link 2 diamond league accounts.": "Бриллиант лигадағы 2 аккаунтты жалғай алмайсыз.",
       "Can't link; would surpass maximum of ${COUNT} linked accounts.": "Жалғанылмайды; аккаунт ${COUNT} рет қана жалғанады.",
-      "Cheating detected; scores and prizes suspended for ${COUNT} days.": "Ах сен, арам; Ұпай және сыйлық ${COUNT} күн бойы қатып тұрады.",
+      "Cheating detected; scores and prizes suspended for ${COUNT} days.": "Ах сен, арам; Ұпайларың және сыйлықтарың ${COUNT} күн бойы қатып тұрады.",
       "Could not establish a secure connection.": "Қауіпсіздікті жалғау сәтсіз аяқталды.",
       "Daily maximum reached.": "Бүгінге жетер.",
       "Daily sign-in reward": "Күнделікті кіру сыйлығы",

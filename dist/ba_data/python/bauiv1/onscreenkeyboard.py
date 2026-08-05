@@ -13,7 +13,7 @@ import babase
 
 import _bauiv1
 from bauiv1._keyboard import Keyboard
-from bauiv1._uitypes import Window
+from bauiv1._window import Window
 
 if TYPE_CHECKING:
     from babase import StringEditAdapter
@@ -52,16 +52,15 @@ class OnScreenKeyboardWindow(Window):
         )
         self._cancel_button = _bauiv1.buttonwidget(
             parent=self._root_widget,
-            scale=0.5,
+            scale=0.6,
             position=(30, self._height - 55),
-            size=(60, 60),
-            label='',
+            size=(50, 50),
+            label=babase.charstr(babase.SpecialChar.CLOSE),
             enable_sound=False,
             on_activate_call=self._cancel,
             autoselect=True,
             color=(0.55, 0.5, 0.6),
-            icon=_bauiv1.gettexture('crossOut'),
-            iconscale=1.2,
+            textcolor=(1, 1, 1),
         )
         self._done_button = _bauiv1.buttonwidget(
             parent=self._root_widget,
@@ -127,7 +126,6 @@ class OnScreenKeyboardWindow(Window):
         self._load_keyboard()
 
     def _load_keyboard(self) -> None:
-        # pylint: disable=too-many-locals
         self._keyboard = self._get_keyboard()
         # We want to get just chars without column data, etc.
         self._chars = [j for i in self._keyboard.chars for j in i]
@@ -246,7 +244,9 @@ class OnScreenKeyboardWindow(Window):
                         textcolor=key_textcolor,
                         color=key_color_dark,
                         label=babase.Lstr(resource='spaceKeyText'),
-                        on_activate_call=babase.Call(self._type_char, ' '),
+                        on_activate_call=babase.CallStrict(
+                            self._type_char, ' '
+                        ),
                     )
 
                     # Show change instructions only if we have more than one
@@ -360,7 +360,7 @@ class OnScreenKeyboardWindow(Window):
             _bauiv1.buttonwidget(
                 edit=btn,
                 label=chars[i] if have_char else ' ',
-                on_activate_call=babase.Call(
+                on_activate_call=babase.CallStrict(
                     self._type_char, chars[i] if have_char else ' '
                 ),
             )

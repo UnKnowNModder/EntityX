@@ -63,6 +63,20 @@ class Message:
         """
         return self.RetryPolicy.DISALLOW
 
+    def get_timeout(self) -> float | None:
+        """Per-message outbound-call timeout, in seconds.
+
+        Returns ``None`` by default, meaning "use whatever the sender
+        implementation considers standard." Message classes on hot
+        paths — e.g. transport-agent launches — can override this to
+        return a tighter value so a saturated or unreachable peer
+        can't compound into a long synchronous hold on the caller.
+
+        Like :meth:`get_retry_policy`, concrete enforcement is up to
+        the messaging system; message classes just express intent.
+        """
+        return None
+
 
 class Response:
     """Base class for responses to messages."""

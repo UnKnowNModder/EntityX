@@ -3,12 +3,15 @@
 # pylint: disable=too-many-lines
 
 """Provides classic app subsystem."""
+
 from __future__ import annotations
 
+import time
 import random
 import logging
 import weakref
-from typing import TYPE_CHECKING, override, assert_never
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, override, assert_never, final
 
 from efro.dataclassio import dataclass_from_dict
 import babase
@@ -25,9 +28,12 @@ from baclassic._store import StoreSubsystem
 from baclassic import _input
 
 if TYPE_CHECKING:
-    from typing import Callable, Any, Sequence
+    import datetime
+    from typing import Callable, Any, Sequence, Awaitable
 
-    import bacommon.bs
+    import bacommon.classic
+    import bacommon.clienteffect as clfx
+    import bacommon.clouddialog.basic as bcdlg
     from bascenev1lib.actor import spazappearance
     from bauiv1lib.party import PartyWindow
 
@@ -36,15 +42,85 @@ if TYPE_CHECKING:
 
 
 class ClassicAppSubsystem(babase.AppSubsystem):
-    """Subsystem for classic functionality in the app.
+    """Subsystem for classic bombsquad functionality in the app.
 
     The single shared instance of this app can be accessed at
-    babase.app.classic. Note that it is possible for babase.app.classic to
-    be None if the classic package is not present, and code should handle
-    that case gracefully.
+    babase.app.classic. Note that it is possible for babase.app.classic
+    to be None if the classic package is not present, and futureproof
+    code should handle that case gracefully.
     """
 
     # pylint: disable=too-many-public-methods
+
+    @dataclass
+    class V2AuthRequest:
+        """What is passed in to V2 auth handler."""
+
+        #: V2 account id of the connecting account (a-XXX).
+        account_id: str
+
+        #: Globally unique tag of the connecting account.
+        account_tag: str
+
+        #: When the connecting account was created.
+        account_create_time: datetime.datetime
+
+        #: Total number of days the connecting account has been active.
+        account_total_active_days: int
+
+        #: An abstract value generated from the connecting client's
+        #: app-instance-id. Can be used to identify repeat connection
+        #: attempts/etc. Note that this value changes each time the
+        #: client re-launches the app.
+        app_instance_signature: str
+
+        #: An abstract value generated from the connecting client's ip
+        #: address. Can be used to identify repeat connection
+        #: attempts/etc.
+        address_signature: str
+
+        #: An abstract value generated from the connecting client's
+        #: device. Can be used to identify repeat connection
+        #: attempts/etc. This value may change over time for a given
+        #: device but should be mostly constant.
+        device_signature: str
+
+        #: List of classic-inventory purchase legacy-ids owned by
+        #: the connecting account (e.g. ``'characters.kronk'``).
+        #: ``None`` when the master server isn't able to determine
+        #: this — for example on older master-server versions or
+        #: when the account has no classic-inventory record. Custom
+        #: handlers should treat ``None`` as "unknown" and not as
+        #: "owns nothing".
+        classic_purchases: list[str] | None = None
+
+    @dataclass
+    class V2AuthResponse:
+        """What a V2 auth handler returns."""
+
+        #: Whether to allow this client to enter the server.
+        allow: bool
+
+        #: A message to be shown to the client if allow is False. A
+        #: defualt rejection message will be shown if none is present
+        #: here. This will be translated using the 'serverResponses'
+        #: translation category so it can be good to use one of the
+        #: entries there if your server has multilingual users.
+        error_message: str | None = None
+
+    @dataclass
+    class V2AuthData:
+        """Authenticated data we store for accepted clients."""
+
+        account_id: str
+        account_tag: str
+        player_profiles: dict
+        #: List of classic-inventory purchase legacy-ids owned by
+        #: the connecting account, or ``None`` when the master
+        #: server didn't provide one (unknown — fall back to the
+        #: legacy hacky character-list path).
+        classic_purchases: list[str] | None
+        expire_time: float
 
     from baclassic._music import MusicPlayMode
 
@@ -92,6 +168,21 @@ class ClassicAppSubsystem(babase.AppSubsystem):
         # Server Mode.
         self.server: ServerController | None = None
 
+        #: V2 authentication handler.
+        #:
+        #: To customize who is allowed in your server, assign your own
+        #: custom handler function to this attribute. This will be called
+        #: for all connecting clients before they are allowed in the
+        #: game. Note that protocol must be set to 36 or newer and
+        #: authenticate_clients must be enabled. For servers you can set
+        #: those values in the server config.
+        self.v2_auth_handler: Callable[
+            [ClassicAppSubsystem.V2AuthRequest],
+            Awaitable[ClassicAppSubsystem.V2AuthResponse],
+        ] = self.default_v2_auth_handler
+        self.v2_auth_datas: dict[str, ClassicAppSubsystem.V2AuthData] = {}
+
+        # Logging/debugging.
         self.log_have_new = False
         self.log_upload_timer_started = False
         self.printed_live_object_warning = False
@@ -126,8 +217,53 @@ class ClassicAppSubsystem(babase.AppSubsystem):
         self.pro_sale_start_time: int | None = None
         self.pro_sale_start_val: int | None = None
 
+    async def default_v2_auth_handler(
+        self, request: V2AuthRequest
+    ) -> V2AuthResponse:
+        """Default auth handler function. Just allows everyone."""
+
+        # A custom handler would look at request here to determine
+        # whether to let this client in.
+        del request  # Unused.
+
+        return self.V2AuthResponse(allow=True)
+
+    @final
+    async def run_v2_auth_handler(
+        self,
+        request: V2AuthRequest,
+        player_profiles: Any,
+        classic_purchases: list[str] | None,
+        token: str,
+    ) -> V2AuthResponse:
+        """:meta private:"""
+        assert babase.in_logic_thread()
+        result = await self.v2_auth_handler(request)
+
+        # If it was accepted, keep their auth data around just long enough
+        # for them to connect.
+        if result.allow:
+            now = time.monotonic()
+            self.v2_auth_datas[token] = self.V2AuthData(
+                account_id=request.account_id,
+                account_tag=request.account_tag,
+                player_profiles=player_profiles,
+                classic_purchases=classic_purchases,
+                expire_time=now + 30.0,
+            )
+
+            # Lazily prune expired auth-data.
+            if any(a.expire_time <= now for a in self.v2_auth_datas.values()):
+                self.v2_auth_datas = {
+                    k: v
+                    for k, v in self.v2_auth_datas.items()
+                    if v.expire_time > now
+                }
+
+        return result
+
     def add_main_menu_close_callback(self, call: Callable[[], Any]) -> None:
-        """(internal)"""
+        """:meta private:"""
 
         # If there's no main window up, just call immediately.
         if not babase.app.ui_v1.has_main_window():
@@ -171,7 +307,7 @@ class ClassicAppSubsystem(babase.AppSubsystem):
         return self._env['platform']
 
     def scene_v1_protocol_version(self) -> int:
-        """(internal)"""
+        """:meta private:"""
         return bascenev1.protocol_version()
 
     @property
@@ -408,7 +544,7 @@ class ClassicAppSubsystem(babase.AppSubsystem):
         # Otherwise just force the issue.
         else:
             babase.pushcall(
-                babase.Call(bascenev1.new_host_session, MainMenuSession)
+                babase.CallStrict(bascenev1.new_host_session, MainMenuSession)
             )
 
     def getmaps(self, playtype: str) -> list[str]:
@@ -461,7 +597,7 @@ class ClassicAppSubsystem(babase.AppSubsystem):
         )
 
     def game_begin_analytics(self) -> None:
-        """(internal)"""
+        """:meta private:"""
         from baclassic import _analytics
 
         _analytics.game_begin_analytics()
@@ -653,11 +789,11 @@ class ClassicAppSubsystem(babase.AppSubsystem):
         return bascenev1.get_player_profile_colors(profilename, profiles)
 
     def get_foreground_host_session(self) -> bascenev1.Session | None:
-        """(internal)"""
+        """:meta private:"""
         return bascenev1.get_foreground_host_session()
 
     def get_foreground_host_activity(self) -> bascenev1.Activity | None:
-        """(internal)"""
+        """:meta private:"""
         return bascenev1.get_foreground_host_activity()
 
     def value_test(
@@ -666,32 +802,26 @@ class ClassicAppSubsystem(babase.AppSubsystem):
         change: float | None = None,
         absolute: float | None = None,
     ) -> float:
-        """(internal)"""
+        """:meta private:"""
         return _baclassic.value_test(arg, change, absolute)
 
     def set_master_server_source(self, source: int) -> None:
-        """(internal)"""
+        """:meta private:"""
         bascenev1.set_master_server_source(source)
 
     def get_game_port(self) -> int:
-        """(internal)"""
+        """:meta private:"""
         return bascenev1.get_game_port()
 
     def v2_upgrade_window(self, login_name: str, code: str) -> None:
-        """(internal)"""
+        """:meta private:"""
 
         from bauiv1lib.v2upgrade import V2UpgradeWindow
 
         V2UpgradeWindow(login_name, code)
 
-    def account_link_code_window(self, data: dict[str, Any]) -> None:
-        """(internal)"""
-        from bauiv1lib.account.link import AccountLinkCodeWindow
-
-        AccountLinkCodeWindow(data)
-
     def server_dialog(self, delay: float, data: dict[str, Any]) -> None:
-        """(internal)"""
+        """:meta private:"""
         from bauiv1lib.serverdialog import (
             ServerDialogData,
             ServerDialogWindow,
@@ -708,17 +838,17 @@ class ClassicAppSubsystem(babase.AppSubsystem):
         if sddata is not None:
             babase.apptimer(
                 delay,
-                babase.Call(ServerDialogWindow, sddata),
+                babase.CallStrict(ServerDialogWindow, sddata),
             )
 
     def show_url_window(self, address: str) -> None:
-        """(internal)"""
+        """:meta private:"""
         from bauiv1lib.url import ShowURLWindow
 
         ShowURLWindow(address)
 
     def quit_window(self, quit_type: babase.QuitType) -> None:
-        """(internal)"""
+        """:meta private:"""
         from bauiv1lib.confirm import QuitWindow
 
         QuitWindow(quit_type)
@@ -734,7 +864,7 @@ class ClassicAppSubsystem(babase.AppSubsystem):
         offset: tuple[float, float] = (0.0, 0.0),
         on_close_call: Callable[[], Any] | None = None,
     ) -> None:
-        """(internal)"""
+        """:meta private:"""
         from bauiv1lib.tournamententry import TournamentEntryWindow
 
         TournamentEntryWindow(
@@ -748,7 +878,7 @@ class ClassicAppSubsystem(babase.AppSubsystem):
         )
 
     def get_main_menu_session(self) -> type[bascenev1.Session]:
-        """(internal)"""
+        """:meta private:"""
         from bascenev1lib.mainmenu import MainMenuSession
 
         return MainMenuSession
@@ -757,10 +887,13 @@ class ClassicAppSubsystem(babase.AppSubsystem):
         self,
         transition: str = 'in_right',
         origin_widget: bauiv1.Widget | None = None,
-        selected_profile: str | None = None,
+        # selected_profile: str | None = None,
     ) -> None:
-        """(internal)"""
-        from bauiv1lib.profile.browser import ProfileBrowserWindow
+        """Pop up a browser window from within a game."""
+        import bacommon.docui.v1 as dui1
+
+        # from bauiv1lib.profile.browser import ProfileBrowserWindow
+        from bauiv1lib.inventory import InventoryUIController
 
         main_window = babase.app.ui_v1.get_main_window()
         if main_window is not None:
@@ -771,14 +904,16 @@ class ClassicAppSubsystem(babase.AppSubsystem):
             return
 
         babase.app.ui_v1.set_main_window(
-            ProfileBrowserWindow(
+            InventoryUIController(player_profiles_only=True).create_window(
+                dui1.Request('/'),
+                uiopenstateid='classicinventory',
                 transition=transition,
-                selected_profile=selected_profile,
                 origin_widget=origin_widget,
-                minimal_toolbar=True,
             ),
             is_top_level=True,
+            back_state=None,
             suppress_warning=True,
+            extra_type_id=InventoryUIController.get_window_extra_type_id(),
         )
 
     def preload_map_preview_media(self) -> None:
@@ -794,7 +929,7 @@ class ClassicAppSubsystem(babase.AppSubsystem):
             logging.exception('Error preloading map preview media.')
 
     def party_icon_activate(self, origin: Sequence[float]) -> None:
-        """(internal)"""
+        """:meta private:"""
         from bauiv1lib.party import PartyWindow
         from babase import app
 
@@ -815,14 +950,11 @@ class ClassicAppSubsystem(babase.AppSubsystem):
             self.party_window = weakref.ref(PartyWindow(origin=origin))
 
     def request_main_ui(self) -> None:
-        """(internal)"""
+        """:meta private:"""
         from bauiv1lib.ingamemenu import InGameMenuWindow
-
-        # from bauiv1 import set_main_ui_input_device
 
         assert babase.app is not None
         if not babase.app.ui_v1.has_main_window():
-            # set_main_ui_input_device(device_id)
 
             # Note: we play a swish here for when our UI comes in, so we
             # need to make sure to disable swish sounds for any buttons
@@ -833,8 +965,17 @@ class ClassicAppSubsystem(babase.AppSubsystem):
             # Pause gameplay.
             self.pause()
 
+            menu_button = bauiv1.get_special_widget('menu_button')
             babase.app.ui_v1.set_main_window(
-                InGameMenuWindow(), is_top_level=True, suppress_warning=True
+                InGameMenuWindow(
+                    transition='scale_in', origin_widget=menu_button
+                ),
+                is_top_level=True,
+                back_state=None,
+                suppress_warning=True,
+                # Reset selections to default for consistency.
+                restore_shared_state=False,
+                extra_type_id='',
             )
 
     def save_ui_state(self) -> None:
@@ -872,12 +1013,21 @@ class ClassicAppSubsystem(babase.AppSubsystem):
                     from bauiv1lib.kiosk import KioskWindow
 
                     app.ui_v1.set_main_window(
-                        KioskWindow(), is_top_level=True, suppress_warning=True
+                        KioskWindow(),
+                        is_top_level=True,
+                        back_state=None,
+                        suppress_warning=True,
+                        extra_type_id='',
                     )
                 else:
                     # If there's a saved ui state, restore that.
                     if self.saved_ui_state is not None:
                         app.ui_v1.restore_main_window_state(self.saved_ui_state)
+                        # Kill the state now that we're back; we'll
+                        # generate a new one when we leave. This keeps
+                        # UIOpenStates stored in the state doing the
+                        # right thing.
+                        self.saved_ui_state = None
                     else:
                         # Otherwise start fresh at the main menu.
                         from bauiv1lib.mainmenu import MainMenuWindow
@@ -885,31 +1035,39 @@ class ClassicAppSubsystem(babase.AppSubsystem):
                         app.ui_v1.set_main_window(
                             MainMenuWindow(transition=None),
                             is_top_level=True,
+                            back_state=None,
                             suppress_warning=True,
+                            extra_type_id='',
                         )
 
     @staticmethod
     def run_bs_client_effects(
-        effects: list[bacommon.bs.ClientEffect], delay: float = 0.0
+        effects: list[clfx.Effect], delay: float = 0.0
     ) -> None:
-        """Run client effects sent from the master server."""
+        """Run client effects sent from the master server.
+
+        :meta private:
+        """
         from baclassic._clienteffect import run_bs_client_effects
 
         run_bs_client_effects(effects, delay=delay)
 
     @staticmethod
     def basic_client_ui_button_label_str(
-        label: bacommon.bs.BasicClientUI.ButtonLabel,
+        label: bcdlg.ButtonLabel,
     ) -> babase.Lstr:
-        """Given a client-ui label, return an Lstr."""
-        import bacommon.bs
+        """Given a client-ui label, return an Lstr.
 
-        cls = bacommon.bs.BasicClientUI.ButtonLabel
+        :meta private:
+        """
+        import bacommon.clouddialog.basic as bcdlg
+
+        cls = bcdlg.ButtonLabel
         if label is cls.UNKNOWN:
             # Server should not be sending us unknown stuff; make noise
             # if they do.
             logging.error(
-                'Got BasicClientUI.ButtonLabel.UNKNOWN; should not happen.'
+                'Got BasicCloudDialog.ButtonLabel.UNKNOWN; should not happen.'
             )
             return babase.Lstr(value='<error>')
 

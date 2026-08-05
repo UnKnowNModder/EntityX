@@ -1,6 +1,7 @@
 # Released under the MIT License. See LICENSE for details.
 #
 """Provides a score screen for coop games."""
+
 # pylint: disable=too-many-lines
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ import logging
 from typing import TYPE_CHECKING, override
 
 from efro.util import strict_partial
-import bacommon.bs
+import bacommon.classic
 from bacommon.login import LoginType
 import bascenev1 as bs
 import bauiv1 as bui
@@ -133,10 +134,10 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
         assert all(isinstance(i, bs.PlayerInfo) for i in self._playerinfos)
 
         self._score: int | None = settings['score']
-        assert isinstance(self._score, (int, type(None)))
+        assert isinstance(self._score, int | None)
 
         self._fail_message: bs.Lstr | None = settings['fail_message']
-        assert isinstance(self._fail_message, (bs.Lstr, type(None)))
+        assert isinstance(self._fail_message, bs.Lstr | None)
 
         self._begin_time: float | None = None
 
@@ -205,7 +206,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
     def _ui_menu(self) -> None:
         bui.containerwidget(edit=self._root_ui, transition='out_left')
         with self.context:
-            bs.timer(0.1, bs.Call(bs.WeakCall(self.session.end)))
+            bs.timer(0.1, bs.CallStrict(bs.WeakCallStrict(self.session.end)))
 
     def _ui_restart(self) -> None:
         from bauiv1lib.tournamententry import TournamentEntryWindow
@@ -309,7 +310,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
             bui.getsound('error').play()
             bs.timer(
                 2.0,
-                bs.WeakCall(
+                bs.WeakCallStrict(
                     self._next_level_error.handlemessage, bs.DieMessage()
                 ),
             )
@@ -332,20 +333,17 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
         # main menu up, so instead we add a callback for when the menu
         # closes; if we're still alive, we'll come up then.
         # If there's no main menu this gets called immediately.
-        classic.add_main_menu_close_callback(bui.WeakCall(self.show_ui))
+        classic.add_main_menu_close_callback(bui.WeakCallStrict(self.show_ui))
 
     def show_ui(self) -> None:
         """Show the UI for restarting, playing the next Level, etc."""
-        # pylint: disable=too-many-locals
-        # pylint: disable=too-many-statements
-        # pylint: disable=too-many-branches
 
         assert bui.app.classic is not None
 
         delay = 0.7 if (self._score is not None) else 0.0
 
         # If there's no players left in the game, lets not show the UI
-        # (that would allow restarting the game with zero players, etc).
+        # (it would allow restarting the game with zero players, etc).
         if not self.players:
             return
 
@@ -373,7 +371,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                 position=(h_offs - 520, v_offs + 450 - 235 + 40),
                 size=(300, 60),
                 label=bui.Lstr(resource='achievementsText'),
-                on_activate_call=bui.WeakCall(self._ui_show_achievements),
+                on_activate_call=bui.WeakCallStrict(self._ui_show_achievements),
                 transition_delay=delay + 1.5,
                 icon=self._game_service_achievements_texture,
                 icon_color=self._game_service_icon_color,
@@ -397,7 +395,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                     )
                 ),
                 autoselect=True,
-                on_activate_call=bui.WeakCall(self._ui_worlds_best),
+                on_activate_call=bui.WeakCallStrict(self._ui_worlds_best),
                 transition_delay=delay + 1.9,
                 selectable=can_select_extra_buttons,
             )
@@ -427,7 +425,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                 size=(100, 50),
                 label='',
                 button_type='square',
-                on_activate_call=bui.WeakCall(self._ui_menu),
+                on_activate_call=bui.WeakCallStrict(self._ui_menu),
             )
             bui.imagewidget(
                 parent=rootc,
@@ -444,7 +442,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                 position=(h_offs - 130 - 60, v_offs),
                 size=(110, 85),
                 label='',
-                on_activate_call=bui.WeakCall(self._ui_menu),
+                on_activate_call=bui.WeakCallStrict(self._ui_menu),
             )
             bui.imagewidget(
                 parent=rootc,
@@ -463,7 +461,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                 size=(100, 50),
                 label='',
                 button_type='square',
-                on_activate_call=bui.WeakCall(self._ui_restart),
+                on_activate_call=bui.WeakCallStrict(self._ui_restart),
             )
             bui.imagewidget(
                 parent=rootc,
@@ -480,7 +478,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                 position=(h_offs - 60, v_offs),
                 size=(110, 85),
                 label='',
-                on_activate_call=bui.WeakCall(self._ui_restart),
+                on_activate_call=bui.WeakCallStrict(self._ui_restart),
             )
             bui.imagewidget(
                 parent=rootc,
@@ -497,12 +495,12 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
         # level yet and invisible if there is none.
         if show_next_button:
             if self._is_complete:
-                call = bui.WeakCall(self._ui_next)
+                call = bui.WeakCallStrict(self._ui_next)
                 button_sound = True
                 image_opacity = 0.8
                 color = None
             else:
-                call = bui.WeakCall(self._ui_error)
+                call = bui.WeakCallStrict(self._ui_error)
                 button_sound = False
                 image_opacity = 0.2
                 color = (0.3, 0.3, 0.3)
@@ -615,7 +613,9 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                 0, self._birth_time + self._min_view_time - bs.time()
             )
 
-            bs.timer(time_till_assign, bs.WeakCall(self._safe_assign, player))
+            bs.timer(
+                time_till_assign, bs.WeakCallStrict(self._safe_assign, player)
+            )
 
     @override
     def on_begin(self) -> None:
@@ -661,7 +661,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                 cfg.commit()
                 self._campaign.set_selected_level(self._next_level_name)
 
-        bs.timer(1.0, bs.WeakCall(self.request_ui))
+        bs.timer(1.0, bs.WeakCallStrict(self.request_ui))
 
         variant = bs.app.env.variant
         vart = type(variant)
@@ -793,9 +793,9 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
         self._show_info = {}
 
         if self._score is not None:
-            bs.timer(0.8, bs.WeakCall(self._show_score_val, offs_x))
+            bs.timer(0.8, bs.WeakCallStrict(self._show_score_val, offs_x))
         else:
-            bs.pushcall(bs.WeakCall(self._show_fail))
+            bs.pushcall(bs.WeakCallStrict(self._show_fail))
 
         self._name_str = name_str = ', '.join(
             [p.name for p in self._playerinfos]
@@ -814,7 +814,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
         )
 
         if self._score is not None and self._submit_score:
-            bs.timer(0.4, bs.WeakCall(self._play_drumroll))
+            bs.timer(0.4, bs.WeakCallStrict(self._play_drumroll))
 
         # Add us to high scores, filter, and store.
         our_high_scores_all = self._campaign.getlevel(
@@ -866,7 +866,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
             # We expect this only in kiosk mode; complain otherwise.
             if not arcade_or_demo:
                 logging.error('got not-signed-in at score-submit; unexpected')
-            bs.pushcall(bs.WeakCall(self._got_score_results, None))
+            bs.pushcall(bs.WeakCallStrict(self._got_score_results, None))
         else:
             assert self._game_name_str is not None
             assert self._game_config_str is not None
@@ -875,7 +875,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                 self._game_config_str,
                 name_str,
                 self._score,
-                bs.WeakCall(self._got_score_results),
+                bs.WeakCallPartial(self._got_score_results),
                 order=self._score_order,
                 tournament_id=self.session.tournament_id,
                 score_type=self._score_type,
@@ -1059,7 +1059,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                 vval -= 55
                 tdelay += 0.250
 
-        bs.timer(5.0, bs.WeakCall(self._show_tips))
+        bs.timer(5.0, bs.WeakCallStrict(self._show_tips))
 
     def _play_drumroll(self) -> None:
         bs.NodeActor(
@@ -1074,9 +1074,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
         ).autoretain()
 
     def _got_friend_score_results(self, results: list[Any] | None) -> None:
-        # pylint: disable=too-many-locals
         # pylint: disable=too-many-branches
-        # pylint: disable=too-many-statements
         from efro.util import asserttype
 
         # delay a bit if results come in too fast
@@ -1209,14 +1207,14 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
             ).autoretain()
 
     def _on_v2_score_results(
-        self, response: bacommon.bs.ScoreSubmitResponse | Exception
+        self, response: bacommon.classic.ScoreSubmitResponse | Exception
     ) -> None:
 
         if isinstance(response, Exception):
             logging.debug('Got error score-submit response: %s', response)
             return
 
-        assert isinstance(response, bacommon.bs.ScoreSubmitResponse)
+        assert isinstance(response, bacommon.classic.ScoreSubmitResponse)
 
         # Aim to have these effects run shortly after the final rating
         # hit happens.
@@ -1233,9 +1231,9 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
             )
 
     def _got_score_results(self, results: dict[str, Any] | None) -> None:
+        # pylint: disable=too-many-statements
         # pylint: disable=too-many-locals
         # pylint: disable=too-many-branches
-        # pylint: disable=too-many-statements
 
         plus = bs.app.plus
         assert plus is not None
@@ -1275,8 +1273,10 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                 ):
                     with plus.accounts.primary:
                         plus.cloud.send_message_cb(
-                            bacommon.bs.ScoreSubmitMessage(score_token),
-                            on_response=bui.WeakCall(self._on_v2_score_results),
+                            bacommon.classic.ScoreSubmitMessage(score_token),
+                            on_response=bui.WeakCallPartial(
+                                self._on_v2_score_results
+                            ),
                         )
 
                 self._score_link = results['link']
@@ -1297,7 +1297,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                     self._tournament_time_remaining = secs_remaining
                     self._tournament_time_remaining_text_timer = bs.BaseTimer(
                         1.0,
-                        bs.WeakCall(
+                        bs.WeakCallStrict(
                             self._update_tournament_time_remaining_text
                         ),
                         repeat=True,
@@ -1315,7 +1315,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
             if self._score is not None:
                 bs.basetimer(
                     (1.5 + base_delay),
-                    bs.WeakCall(self._show_world_rank, offs_x),
+                    bs.WeakCallStrict(self._show_world_rank, offs_x),
                 )
             ts_h_offs = 280
             ts_height = 300
@@ -1509,10 +1509,10 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
             self._tournament_time_remaining_text.node.text = val
 
     def _show_world_rank(self, offs_x: float) -> None:
+        # pylint: disable=too-many-statements
         # FIXME: Tidy this up.
         # pylint: disable=too-many-locals
         # pylint: disable=too-many-branches
-        # pylint: disable=too-many-statements
         assert bs.app.classic is not None
         assert self._show_info is not None
         available = self._show_info['results'] is not None
@@ -1574,7 +1574,7 @@ class CoopScoreScreen(bs.Activity[bs.Player, bs.Team]):
                     ]
                     # pylint: disable=useless-suppression
                     # pylint: disable=unbalanced-tuple-unpacking
-                    (pr1, pv1, pr2, pv2, pr3, pv3) = (
+                    pr1, pv1, pr2, pv2, pr3, pv3 = (
                         bs.app.classic.get_tournament_prize_strings(
                             tourney_info, include_tickets=False
                         )

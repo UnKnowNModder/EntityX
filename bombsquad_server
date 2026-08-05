@@ -2,7 +2,8 @@
 # Released under the MIT License. See LICENSE for details.
 #
 # pylint: disable=too-many-lines
-"""BallisticaKit server manager."""
+"""BombSquad server manager."""
+
 from __future__ import annotations
 
 import os
@@ -34,9 +35,14 @@ if TYPE_CHECKING:
     from types import FrameType
     from bacommon.servermanager import ServerCommand
 
-VERSION_STR = '1.3.5'
+VERSION_STR = '1.3.6'
 
 # Version history:
+#
+# 1.3.6
+#
+#  - Minor tweak to disable new native REPL since we rely on the simple old
+#    one to feed input into the game.
 #
 # 1.3.5
 #
@@ -70,7 +76,7 @@ VERSION_STR = '1.3.5'
 #
 # 1.3.1
 #
-#  - Windows binary is now named 'BallisticaKitHeadless.exe'.
+#  - Windows binary is now named 'BombSquadHeadless.exe'.
 #
 # 1.3:
 #
@@ -119,10 +125,10 @@ VERSION_STR = '1.3.5'
 
 
 class ServerManagerApp:
-    """An app which manages BallisticaKit server execution.
+    """An app which manages BombSquad server execution.
 
     Handles configuring, launching, re-launching, and otherwise
-    managing BallisticaKit operating in server mode.
+    managing BombSquad operating in server mode.
     """
 
     # How many seconds we wait after asking our subprocess to do an immediate
@@ -133,6 +139,7 @@ class ServerManagerApp:
         self._user_provided_config_path: str | None = None
         self._config = ServerConfig()
         self._ba_root_path = os.path.abspath('dist/ba_root')
+        self._initial_exec_code: str | None = None
         self._interactive = sys.stdin.isatty()
         self._wrapper_shutdown_desired = False
         self._done = False
@@ -183,7 +190,7 @@ class ServerManagerApp:
 
         dbgstr = 'debug' if __debug__ else 'opt'
         print(
-            f'{Clr.CYN}{Clr.BLD}BallisticaKit server manager {VERSION_STR}'
+            f'{Clr.CYN}{Clr.BLD}BombSquad server manager {VERSION_STR}'
             f' starting up ({dbgstr} mode)...{Clr.RST}',
             flush=True,
         )
@@ -472,6 +479,15 @@ class ServerManagerApp:
             elif arg == '--no-config-auto-restart':
                 self._config_auto_restart = False
                 i += 1
+            elif arg == '--exec':
+                if i + 1 >= argc:
+                    raise CleanError('Expected a Python snippet as next arg.')
+                # Forward this through to the underlying headless
+                # binary as its own --exec arg; the binary runs it
+                # once classic app mode is active, which is after
+                # StartServerModeCommand has set up ServerController.
+                self._initial_exec_code = sys.argv[i + 1]
+                i += 2
             else:
                 raise CleanError(f"Invalid arg: '{arg}'.")
 
@@ -492,7 +508,7 @@ class ServerManagerApp:
             f'{Clr.BLD}{filename} usage:{Clr.RST}\n'
             + cls._par(
                 'This script handles configuring, launching, re-launching,'
-                ' and otherwise managing BallisticaKit operating'
+                ' and otherwise managing BombSquad operating'
                 ' in server mode. It can be run with no arguments, but'
                 ' accepts the following optional ones:'
             )
@@ -726,6 +742,11 @@ class ServerManagerApp:
         if self._config.dont_write_bytecode:
             extra_args += ['--dont-write-bytecode']
 
+        if self._initial_exec_code is not None:
+            # Forward the wrapper's --exec value through to the
+            # subprocess binary's own --exec arg.
+            extra_args += ['--exec', self._initial_exec_code]
+
         # Set an environment var to change the device name. Device name
         # is used while making connection with master server,
         # cloud-console recognize us with this name.
@@ -733,9 +754,9 @@ class ServerManagerApp:
 
         print(f'{Clr.CYN}Launching server subprocess...{Clr.RST}', flush=True)
         binary_name = (
-            'BallisticaKitHeadless.exe'
+            'BombSquadHeadless.exe'
             if os.name == 'nt'
-            else './ballisticakit_headless'
+            else './bombsquad_headless'
         )
         assert self._ba_root_path is not None
         self._subprocess = None
@@ -821,7 +842,7 @@ class ServerManagerApp:
             bincfg = {}
 
         # Some of our config values translate directly into the
-        # ballisticakit config file; the rest we pass at runtime.
+        # bombsquad config file; the rest we pass at runtime.
 
         # IMPORTANT: Make sure we *ALWAYS* push values (or lack thereof)
         # through; otherwise stale values from previous runs can linger
@@ -861,6 +882,10 @@ class ServerManagerApp:
             }
         elif binkey in bincfg:
             del bincfg[binkey]
+
+        # We feed the binary commands through stdin, so make sure it
+        # is using the simple old dumb path for that.
+        bincfg['Use Native Python REPL'] = False
 
         with open(cfgpath, 'w', encoding='utf-8') as outfile:
             outfile.write(json.dumps(bincfg))
@@ -954,7 +979,6 @@ class ServerManagerApp:
             time.sleep(0.25)
 
     def _request_shutdowns_or_restarts(self) -> None:
-        # pylint: disable=too-many-branches
         assert current_thread() is self._subprocess_thread
         assert self._subprocess_launch_time is not None
         now = time.time()
@@ -1068,7 +1092,7 @@ class ServerManagerApp:
 
 
 def main() -> None:
-    """Run the BallisticaKit server manager."""
+    """Run the BombSquad server manager."""
     try:
         ServerManagerApp().run()
     except CleanError as exc:

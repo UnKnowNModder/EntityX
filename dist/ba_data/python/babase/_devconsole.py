@@ -1,6 +1,7 @@
 # Released under the MIT License. See LICENSE for details.
 #
 """Dev-Console functionality."""
+
 from __future__ import annotations
 
 import os
@@ -12,6 +13,19 @@ import _babase
 
 if TYPE_CHECKING:
     from typing import Callable, Any, Literal
+
+
+class DevConsoleButtonDef:
+    """A barebones way to define a custom button for the dev console.
+
+    Note that a :class:`DevConsoleTab` should use its
+    :meth:`DevConsoleTab.button()` method to create buttons; this is
+    instead for allowing basic customization.
+    """
+
+    def __init__(self, name: str, call: Callable[[], Any]) -> None:
+        self.name = name
+        self.call = call
 
 
 class DevConsoleTab:

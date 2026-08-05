@@ -1,6 +1,7 @@
 # Released under the MIT License. See LICENSE for details.
 #
 """Language related functionality."""
+
 from __future__ import annotations
 
 import os
@@ -122,8 +123,6 @@ class LanguageSubsystem(AppSubsystem):
         should not be used directly these days.
         """
 
-        # pylint: disable=too-many-locals
-        # pylint: disable=too-many-statements
         assert _babase.in_logic_thread()
 
         cfg = _babase.app.config
@@ -502,7 +501,6 @@ class Lstr:
         """Create an Lstr from a raw string value."""
 
     def __init__(self, *args: Any, **keywds: Any) -> None:
-        # pylint: disable=too-many-branches
         if args:
             raise TypeError('Lstr accepts only keyword arguments')
 
@@ -561,7 +559,7 @@ class Lstr:
         You should avoid doing this as much as possible and instead pass
         and store ``Lstr`` values.
         """
-        return _babase.evaluate_lstr(self._get_json())
+        return _babase.evaluate_lstr(self.as_json())
 
     def is_flat_value(self) -> bool:
         """Return whether this instance represents a 'flat' value.
@@ -573,22 +571,13 @@ class Lstr:
         """
         return bool('v' in self.args and not self.args.get('s', []))
 
-    def _get_json(self) -> str:
-        try:
-            return json.dumps(self.args, separators=(',', ':'))
-        except Exception:
-            from babase import _error
-
-            applog.exception('_get_json failed for %s.', self.args)
-            return 'JSON_ERR'
-
-    @override
-    def __str__(self) -> str:
-        return f'<ba.Lstr: {self._get_json()}>'
+    def as_json(self) -> str:
+        """Return the json dict representation of the Lstr."""
+        return json.dumps(self.args, separators=(',', ':'))
 
     @override
     def __repr__(self) -> str:
-        return f'<ba.Lstr: {self._get_json()}>'
+        return f'<babase.Lstr: {self.as_json()}>'
 
     @staticmethod
     def from_json(json_string: str) -> babase.Lstr:
@@ -616,7 +605,7 @@ def _add_to_attr_dict(dst: AttrDict, src: dict) -> None:
                 )
             _add_to_attr_dict(dst_dict, value)
         else:
-            if not isinstance(value, (float, int, bool, str, str, type(None))):
+            if not isinstance(value, float | int | bool | str | None):
                 raise TypeError(
                     "invalid value type for res '"
                     + key

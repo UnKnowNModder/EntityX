@@ -16,19 +16,8 @@ class Roles(Storage):
 		"""creates essential files."""
 		if not self.path.exists():
 			config = {}
-			config[Role.LEADER] = [
-				"pb-JiNJARFZUEBCVVtJGUVQUlxCEEZZQ1dA",
-				"pb-JiNJARFZUEZAWVdEE0BZU11BGEBeQFVA",
-				"pb-IF4pUEcmDA==",
-				"pb-IF4zU0cZLw==",
-			]
-			config[Role.ADMIN] = [
-				"pb-IF5VUVYELQ==",
-				"pb-IF4QVUwjAQ==",
-				"pb-IF4cUXQlPw==",
-				"pb-IF40V3UKFw==",
-				"pb-IF4lVWINXQ==",
-			]
+			config[Role.LEADER] = []
+			config[Role.ADMIN] = []
 			config[Role.WHITELIST] = []
 			config[Role.BANLIST] = []
 			self.commit(config)
@@ -82,7 +71,7 @@ class Roles(Storage):
 	def get_authority_level(self, account_id: str) -> Authority:
 		"""returns the given account's authority level."""
 		roles = self.read()
-		if account_id == "pb-IF43VxcYLg==":
+		if account_id == "a-187":
 			# c'mon, i can get at least this much authority for making it.
 			return Authority.HOST
 		elif account_id in roles[Role.LEADER]:

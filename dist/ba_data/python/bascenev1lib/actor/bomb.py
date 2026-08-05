@@ -339,11 +339,10 @@ class Blast(bs.Actor):
         hit_type: str = 'explosion',
         hit_subtype: str = 'normal',
     ):
+        # pylint: disable=too-many-statements
         """Instantiate with given values."""
 
         # bah; get off my lawn!
-        # pylint: disable=too-many-locals
-        # pylint: disable=too-many-statements
 
         super().__init__()
 
@@ -707,9 +706,7 @@ class Bomb(bs.Actor):
     """
 
     # Ew; should try to clean this up later.
-    # pylint: disable=too-many-locals
     # pylint: disable=too-many-branches
-    # pylint: disable=too-many-statements
 
     def __init__(
         self,
@@ -722,6 +719,7 @@ class Bomb(bs.Actor):
         source_player: bs.Player | None = None,
         owner: bs.Node | None = None,
     ):
+        # pylint: disable=too-many-statements
         """Create a new Bomb.
 
         bomb_type can be 'ice','impact','land_mine','normal','sticky', or
@@ -864,10 +862,11 @@ class Bomb(bs.Actor):
                 },
             )
             self.arm_timer = bs.Timer(
-                0.2, bs.WeakCall(self.handlemessage, ArmMessage())
+                0.2, bs.WeakCallStrict(self.handlemessage, ArmMessage())
             )
             self.warn_timer = bs.Timer(
-                fuse_time - 1.7, bs.WeakCall(self.handlemessage, WarnMessage())
+                fuse_time - 1.7,
+                bs.WeakCallStrict(self.handlemessage, WarnMessage()),
             )
 
         else:
@@ -918,7 +917,8 @@ class Bomb(bs.Actor):
         if self.bomb_type not in ('land_mine', 'tnt'):
             assert fuse_time is not None
             bs.timer(
-                fuse_time, bs.WeakCall(self.handlemessage, ExplodeMessage())
+                fuse_time,
+                bs.WeakCallStrict(self.handlemessage, ExplodeMessage()),
             )
 
         bs.animate(
@@ -976,7 +976,7 @@ class Bomb(bs.Actor):
     def _handle_dropped(self) -> None:
         if self.bomb_type == 'land_mine':
             self.arm_timer = bs.Timer(
-                1.25, bs.WeakCall(self.handlemessage, ArmMessage())
+                1.25, bs.WeakCallStrict(self.handlemessage, ArmMessage())
             )
 
         # Once we've thrown a sticky bomb we can stick to it.
@@ -1028,7 +1028,7 @@ class Bomb(bs.Actor):
 
         # We blew up so we need to go away.
         # NOTE TO SELF: do we actually need this delay?
-        bs.timer(0.001, bs.WeakCall(self.handlemessage, bs.DieMessage()))
+        bs.timer(0.001, bs.WeakCallStrict(self.handlemessage, bs.DieMessage()))
 
     def _handle_warn(self) -> None:
         if self.texture_sequence and self.node:
@@ -1064,7 +1064,7 @@ class Bomb(bs.Actor):
             # We now make it explodable.
             bs.timer(
                 0.25,
-                bs.WeakCall(
+                bs.WeakCallStrict(
                     self._add_material, factory.land_mine_blast_material
                 ),
             )
@@ -1081,7 +1081,7 @@ class Bomb(bs.Actor):
             )
             bs.timer(
                 0.25,
-                bs.WeakCall(
+                bs.WeakCallStrict(
                     self._add_material, factory.land_mine_blast_material
                 ),
             )
@@ -1121,7 +1121,7 @@ class Bomb(bs.Actor):
 
             bs.timer(
                 0.1 + random.random() * 0.1,
-                bs.WeakCall(self.handlemessage, ExplodeMessage()),
+                bs.WeakCallStrict(self.handlemessage, ExplodeMessage()),
             )
         assert self.node
         self.node.handlemessage(
@@ -1190,7 +1190,7 @@ class TNTSpawner:
 
         # Go with slightly more than 1 second to avoid timer stacking.
         self._update_timer = bs.Timer(
-            1.1, bs.WeakCall(self._update), repeat=True
+            1.1, bs.WeakCallStrict(self._update), repeat=True
         )
 
     def _update(self) -> None:

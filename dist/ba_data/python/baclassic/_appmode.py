@@ -1,7 +1,7 @@
 # Released under the MIT License. See LICENSE for details.
 #
-"""Contains ClassicAppMode."""
 # pylint: disable=too-many-lines
+"""Contains ClassicAppMode."""
 
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ from functools import partial
 from typing import TYPE_CHECKING, override
 
 from efro.error import CommunicationError
-import bacommon.bs
-import babase
-import bauiv1
+import bacommon.clienteffect as clfx
+import bacommon.classic
+from babase import AppMode
+import bauiv1 as bui
 from bauiv1lib.connectivity import wait_for_connectivity
-from bauiv1lib.account.signin import show_sign_in_prompt
 
 import _baclassic
 
@@ -29,10 +29,11 @@ if TYPE_CHECKING:
 
 
 # ba_meta export babase.AppMode
-class ClassicAppMode(babase.AppMode):
+class ClassicAppMode(AppMode):
     """AppMode for the classic BombSquad experience."""
 
     _ACCOUNT_STATE_CONFIG_KEY = 'ClassicAccountState'
+    _ASKED_FOR_REVIEW_CONFIG_KEY = 'AskedForReview'
 
     def __init__(self) -> None:
         self._on_primary_account_changed_callback: (
@@ -41,17 +42,17 @@ class ClassicAppMode(babase.AppMode):
         self._on_connectivity_changed_callback: CallbackRegistration | None = (
             None
         )
-        self._test_sub: babase.CloudSubscription | None = None
-        self._account_data_sub: babase.CloudSubscription | None = None
+        self._test_sub: bui.CloudSubscription | None = None
+        self._account_data_sub: bui.CloudSubscription | None = None
 
         self._have_account_values = False
         self._have_connectivity = False
         self._current_account_id: str | None = None
 
-        self._purchase_ui_pause: bauiv1.RootUIUpdatePause | None = None
+        self._purchase_ui_pause: bui.RootUIUpdatePause | None = None
         self._last_tokens_value = 0
 
-        self._purchases_update_timer: babase.AppTimer | None = None
+        self._purchases_update_timer: bui.AppTimer | None = None
         self._purchase_request_in_flight = False
         self._target_purchases_state: str | None = None
 
@@ -61,18 +62,16 @@ class ClassicAppMode(babase.AppMode):
 
     @override
     @classmethod
-    def can_handle_intent(cls, intent: babase.AppIntent) -> bool:
+    def can_handle_intent(cls, intent: bui.AppIntent) -> bool:
         # We support default and exec intents currently.
-        return isinstance(
-            intent, babase.AppIntentExec | babase.AppIntentDefault
-        )
+        return isinstance(intent, bui.AppIntentExec | bui.AppIntentDefault)
 
     @override
-    def handle_intent(self, intent: babase.AppIntent) -> None:
-        if isinstance(intent, babase.AppIntentExec):
+    def handle_intent(self, intent: bui.AppIntent) -> None:
+        if isinstance(intent, bui.AppIntentExec):
             _baclassic.classic_app_mode_handle_app_intent_exec(intent.code)
             return
-        assert isinstance(intent, babase.AppIntentDefault)
+        assert isinstance(intent, bui.AppIntentDefault)
         _baclassic.classic_app_mode_handle_app_intent_default()
 
     @override
@@ -81,7 +80,7 @@ class ClassicAppMode(babase.AppMode):
         # Let the native layer do its thing.
         _baclassic.classic_app_mode_activate()
 
-        app = babase.app
+        app = bui.app
         plus = app.plus
         assert plus is not None
 
@@ -159,7 +158,7 @@ class ClassicAppMode(babase.AppMode):
     @override
     def on_deactivate(self) -> None:
 
-        classic = babase.app.classic
+        classic = bui.app.classic
 
         # Store latest league vis vals for any active account.
         self._save_account_state()
@@ -182,11 +181,11 @@ class ClassicAppMode(babase.AppMode):
 
     @override
     def on_app_active_changed(self) -> None:
-        if not babase.app.active:
+        if not bui.app.active:
             # If we're going inactive, ask for the main ui, which should
             # have the side effect of pausing the action if we're in a
             # game.
-            babase.request_main_ui()
+            bui.request_main_ui()
 
             # Also store any league vis state for the active account.
             # this may be our last chance to do this on mobile.
@@ -207,13 +206,13 @@ class ClassicAppMode(babase.AppMode):
         # need to explicitly kill this pause if we are deactivated since
         # we wouldn't get the on_purchase_process_end() call; the next
         # app-mode would.
-        self._purchase_ui_pause = bauiv1.RootUIUpdatePause()
+        self._purchase_ui_pause = bui.RootUIUpdatePause()
 
         # Also grab our last known token count here to plug into animations.
         # We need to do this here before the purchase gets submitted so that
         # we know we're seeing the old value.
-        assert babase.app.classic is not None
-        self._last_tokens_value = babase.app.classic.tokens
+        assert bui.app.classic is not None
+        self._last_tokens_value = bui.app.classic.tokens
 
     @override
     def on_purchase_process_end(
@@ -235,19 +234,19 @@ class ClassicAppMode(babase.AppMode):
 
         if item_id.startswith('tokens'):
             if item_id == 'tokens1':
-                tokens = bacommon.bs.TOKENS1_COUNT
+                tokens = bacommon.classic.TOKENS1_COUNT
                 tokens_str = str(tokens)
                 anim_time = 2.0
             elif item_id == 'tokens2':
-                tokens = bacommon.bs.TOKENS2_COUNT
+                tokens = bacommon.classic.TOKENS2_COUNT
                 tokens_str = str(tokens)
                 anim_time = 2.5
             elif item_id == 'tokens3':
-                tokens = bacommon.bs.TOKENS3_COUNT
+                tokens = bacommon.classic.TOKENS3_COUNT
                 tokens_str = str(tokens)
                 anim_time = 3.0
             elif item_id == 'tokens4':
-                tokens = bacommon.bs.TOKENS4_COUNT
+                tokens = bacommon.classic.TOKENS4_COUNT
                 tokens_str = str(tokens)
                 anim_time = 3.5
             else:
@@ -258,40 +257,38 @@ class ClassicAppMode(babase.AppMode):
                     'Unhandled item_id in on_purchase_process_end: %s', item_id
                 )
 
-            assert babase.app.classic is not None
-            effects: list[bacommon.bs.ClientEffect] = [
-                bacommon.bs.ClientEffectTokensAnimation(
+            assert bui.app.classic is not None
+            effects: list[clfx.Effect] = [
+                clfx.TokensAnimation(
                     duration=anim_time,
                     startvalue=self._last_tokens_value,
                     endvalue=self._last_tokens_value + tokens,
                 ),
-                bacommon.bs.ClientEffectDelay(anim_time),
-                bacommon.bs.ClientEffectScreenMessage(
+                clfx.Delay(anim_time),
+                clfx.LegacyScreenMessage(
                     message='You got ${COUNT} tokens!',
                     subs=['${COUNT}', tokens_str],
                     color=(0, 1, 0),
                 ),
-                bacommon.bs.ClientEffectSound(
-                    sound=bacommon.bs.ClientEffectSound.Sound.CASH_REGISTER
-                ),
+                clfx.PlaySound(clfx.Sound.CASH_REGISTER),
             ]
-            babase.app.classic.run_bs_client_effects(effects)
+            bui.app.classic.run_bs_client_effects(effects)
 
         elif item_id.startswith('gold_pass'):
-            babase.screenmessage(
-                babase.Lstr(
+            bui.screenmessage(
+                bui.Lstr(
                     translate=('serverResponses', 'You got a ${ITEM}!'),
                     subs=[
                         (
                             '${ITEM}',
-                            babase.Lstr(resource='goldPass.goldPassText'),
+                            bui.Lstr(resource='goldPass.goldPassText'),
                         )
                     ],
                 ),
                 color=(0, 1, 0),
             )
-            if babase.asset_loads_allowed():
-                babase.getsimplesound('cashRegister').play()
+            if bui.asset_loads_allowed():
+                bui.getsound('cashRegister').play()
 
         else:
 
@@ -299,15 +296,15 @@ class ClassicAppMode(babase.AppMode):
             logging.warning(
                 'on_purchase_process_end got unexpected item_id: %s.', item_id
             )
-            babase.screenmessage(
-                babase.Lstr(
+            bui.screenmessage(
+                bui.Lstr(
                     translate=('serverResponses', 'You got a ${ITEM}!'),
                     subs=[('${ITEM}', item_id)],
                 ),
                 color=(0, 1, 0),
             )
-            if babase.asset_loads_allowed():
-                babase.getsimplesound('cashRegister').play()
+            if bui.asset_loads_allowed():
+                bui.getsound('cashRegister').play()
 
     def on_engine_will_reset(self) -> None:
         """Called just before classic resets the engine.
@@ -336,9 +333,9 @@ class ClassicAppMode(babase.AppMode):
             return
 
         self._purchase_request_in_flight = True
-        babase.accountlog.debug('Requesting latest purchases state...')
+        bui.accountlog.debug('Requesting latest purchases state...')
 
-        plus = babase.app.plus
+        plus = bui.app.plus
         assert plus is not None
         if plus.accounts.primary is None:
             raise RuntimeError(
@@ -347,14 +344,14 @@ class ClassicAppMode(babase.AppMode):
 
         with plus.accounts.primary:
             plus.cloud.send_message_cb(
-                bacommon.bs.GetClassicPurchasesMessage(),
-                on_response=babase.WeakCall(
+                bacommon.classic.GetClassicPurchasesMessage(),
+                on_response=bui.WeakCallPartial(
                     self._on_get_classic_purchases_response
                 ),
             )
 
     def _on_get_classic_purchases_response(
-        self, response: bacommon.bs.GetClassicPurchasesResponse | Exception
+        self, response: bacommon.classic.GetClassicPurchasesResponse | Exception
     ) -> None:
         assert self._purchase_request_in_flight
         self._purchase_request_in_flight = False
@@ -364,12 +361,12 @@ class ClassicAppMode(babase.AppMode):
                 # No biggie; we expect these when offline/etc.
                 pass
             else:
-                babase.netlog.exception('Error requesting classic purchases.')
+                bui.netlog.exception('Error requesting classic purchases.')
             return
 
         # If we're no longer looking for a state, we can abort early.
         if self._target_purchases_state is None:
-            babase.accountlog.debug(
+            bui.accountlog.debug(
                 'No longer looking for new purchases state; aborting fetch.'
             )
             self._purchases_update_timer = None
@@ -386,10 +383,10 @@ class ClassicAppMode(babase.AppMode):
         self._current_purchases = frozenset(response.purchases)
         self._current_purchases_state = state
 
-        assert babase.app.classic is not None
-        babase.app.classic.purchases = self._current_purchases
+        assert bui.app.classic is not None
+        bui.app.classic.purchases = self._current_purchases
 
-        babase.accountlog.debug(
+        bui.accountlog.debug(
             'Updated purchases state to %s: (%s items)',
             state,
             len(self._current_purchases),
@@ -401,15 +398,15 @@ class ClassicAppMode(babase.AppMode):
         return hashlib.md5(','.join(sorted(purchases)).encode()).hexdigest()
 
     def _update_for_primary_account(
-        self, account: babase.AccountV2Handle | None
+        self, account: bui.AccountV2Handle | None
     ) -> None:
         """Update subscriptions/etc. for a new primary account state."""
-        assert babase.in_logic_thread()
-        plus = babase.app.plus
+        assert bui.in_logic_thread()
+        plus = bui.app.plus
 
         assert plus is not None
 
-        classic = babase.app.classic
+        classic = bui.app.classic
         assert classic is not None
 
         if account is not None:
@@ -473,6 +470,7 @@ class ClassicAppMode(babase.AppMode):
                 chest_1_ad_allow_time=-1.0,
                 chest_2_ad_allow_time=-1.0,
                 chest_3_ad_allow_time=-1.0,
+                store_style='',
             )
             self._have_account_values = False
             self._update_ui_live_state()
@@ -507,11 +505,11 @@ class ClassicAppMode(babase.AppMode):
         print(f'GOT SUB TEST UPDATE: {val}')
 
     def _on_classic_account_data_change(
-        self, val: bacommon.bs.ClassicAccountLiveData
+        self, val: bacommon.classic.ClassicLiveAccountClientData
     ) -> None:
         achp = round(val.achievements / max(val.achievements_total, 1) * 100.0)
 
-        babase.accountlog.debug('Got new classic account data.')
+        bui.accountlog.debug('Got new classic live account data.')
 
         chest0 = val.chests.get('0')
         chest1 = val.chests.get('1')
@@ -520,7 +518,7 @@ class ClassicAppMode(babase.AppMode):
 
         # Keep a few handy values on classic updated with the latest
         # data.
-        classic = babase.app.classic
+        classic = bui.app.classic
         assert classic is not None
         classic.remove_ads = val.remove_ads
         classic.gold_pass = val.gold_pass
@@ -528,6 +526,18 @@ class ClassicAppMode(babase.AppMode):
         classic.tickets = val.tickets
 
         self._target_purchases_state = val.purchases_state
+
+        # If they want us to ask for a review (and we haven't yet), do
+        # so.
+        if val.Flag.ASK_FOR_REVIEW in val.flags:
+            cfg = bui.app.config
+            if (
+                not cfg.get(self._ASKED_FOR_REVIEW_CONFIG_KEY, False)
+                and bui.native_review_request_supported()
+            ):
+                cfg[self._ASKED_FOR_REVIEW_CONFIG_KEY] = True
+                cfg.commit()
+                bui.native_review_request()
 
         # If someone replaced our purchases in the classic subsystem,
         # fix it.
@@ -543,7 +553,7 @@ class ClassicAppMode(babase.AppMode):
             self._target_purchases_state is not None
             and self._current_purchases_state != self._target_purchases_state
         ):
-            babase.accountlog.debug(
+            bui.accountlog.debug(
                 'Account purchases state is %s; we have %s. Will fetch new.',
                 self._target_purchases_state,
                 self._current_purchases_state,
@@ -553,7 +563,7 @@ class ClassicAppMode(babase.AppMode):
                 # doing its thing.
                 pass
             else:
-                self._purchases_update_timer = babase.AppTimer(
+                self._purchases_update_timer = bui.AppTimer(
                     3.456, self._update_purchases, repeat=True
                 )
                 self._possibly_request_purchases()
@@ -583,7 +593,7 @@ class ClassicAppMode(babase.AppMode):
             inbox_count=val.inbox_count,
             inbox_count_is_max=val.inbox_count_is_max,
             inbox_announce_text=(
-                babase.Lstr(resource='unclaimedPrizesText').evaluate()
+                bui.Lstr(resource='unclaimedPrizesText').evaluate()
                 if val.inbox_contains_prize
                 else ''
             ),
@@ -656,6 +666,7 @@ class ClassicAppMode(babase.AppMode):
                 if chest3 is None or chest3.ad_allow_time is None
                 else chest3.ad_allow_time.timestamp()
             ),
+            store_style=val.store_style.value,
         )
 
         # Note that we have values and updated faded state accordingly.
@@ -665,15 +676,15 @@ class ClassicAppMode(babase.AppMode):
     def _root_ui_menu_press(self) -> None:
         from babase import menu_press
 
-        ui = babase.app.ui_v1
+        ui = bui.app.ui_v1
 
         # If *any* main-window is up, kill it and resume play.
         old_window = ui.get_main_window()
         if old_window is not None:
 
-            bauiv1.getsound('swish').play()
+            bui.getsound('swish').play()
 
-            classic = babase.app.classic
+            classic = bui.app.classic
             assert classic is not None
             classic.resume()
 
@@ -685,169 +696,84 @@ class ClassicAppMode(babase.AppMode):
     def _root_ui_account_press(self) -> None:
         from bauiv1lib.account.settings import AccountSettingsWindow
 
-        self._auxiliary_window_nav(
+        bui.app.ui_v1.auxiliary_window_activate(
             win_type=AccountSettingsWindow,
             win_create_call=lambda: AccountSettingsWindow(
-                origin_widget=bauiv1.get_special_widget('account_button')
+                origin_widget=bui.get_special_widget('account_button')
             ),
         )
 
     def _root_ui_squad_press(self) -> None:
-        btn = bauiv1.get_special_widget('squad_button')
+        btn = bui.get_special_widget('squad_button')
         center = btn.get_screen_space_center()
-        if bauiv1.app.classic is not None:
-            bauiv1.app.classic.party_icon_activate(center)
+        if bui.app.classic is not None:
+            bui.app.classic.party_icon_activate(center)
         else:
             logging.warning('party_icon_activate: no classic.')
 
     def _root_ui_settings_press(self) -> None:
         from bauiv1lib.settings.allsettings import AllSettingsWindow
 
-        self._auxiliary_window_nav(
+        bui.app.ui_v1.auxiliary_window_activate(
             win_type=AllSettingsWindow,
             win_create_call=lambda: AllSettingsWindow(
-                origin_widget=bauiv1.get_special_widget('settings_button')
+                origin_widget=bui.get_special_widget('settings_button')
             ),
-        )
-
-    def _auxiliary_window_nav(
-        self,
-        win_type: type[bauiv1.MainWindow],
-        win_create_call: Callable[[], bauiv1.MainWindow],
-    ) -> None:
-        """Navigate to or away from an Auxiliary window.
-
-        Auxiliary windows can be thought of as 'side quests' in the
-        window hierarchy; places such as settings windows or league
-        ranking windows that the user might want to visit without losing
-        their place in the regular hierarchy.
-        """
-        # pylint: disable=unidiomatic-typecheck
-
-        ui = babase.app.ui_v1
-
-        current_main_window = ui.get_main_window()
-
-        # Scan our ancestors for auxiliary states matching our type as
-        # well as auxiliary states in general.
-        aux_matching_state: bauiv1.MainWindowState | None = None
-        aux_state: bauiv1.MainWindowState | None = None
-
-        if current_main_window is None:
-            raise RuntimeError(
-                'Not currently handling no-top-level-window case.'
-            )
-
-        state = current_main_window.main_window_back_state
-        while state is not None:
-            assert state.window_type is not None
-            if state.is_auxiliary:
-                if state.window_type is win_type:
-                    aux_matching_state = state
-                else:
-                    aux_state = state
-
-            state = state.parent
-
-        # If there's an ancestor auxiliary window-state matching our
-        # type, back out past it (example: poking settings, navigating
-        # down a level or two, and then poking settings again should
-        # back out of settings).
-        if aux_matching_state is not None:
-            current_main_window.main_window_back_state = (
-                aux_matching_state.parent
-            )
-            current_main_window.main_window_back()
-            return
-
-        # If there's an ancestory auxiliary state *not* matching our
-        # type, crop the state and swap in our new auxiliary UI
-        # (example: poking settings, then poking account, then poking
-        # back should end up where things were before the settings
-        # poke).
-        if aux_state is not None:
-            # Blow away the window stack and build a fresh one.
-            ui.clear_main_window()
-            ui.set_main_window(
-                win_create_call(),
-                from_window=False,  # Disable from-check.
-                back_state=aux_state.parent,
-                suppress_warning=True,
-                is_auxiliary=True,
-            )
-            return
-
-        # Ok, no auxiliary states found. Now if current window is
-        # auxiliary and the type matches, simply do a back.
-        if (
-            current_main_window.main_window_is_auxiliary
-            and type(current_main_window) is win_type
-        ):
-            current_main_window.main_window_back()
-            return
-
-        # If current window is auxiliary but type doesn't match,
-        # swap it out for our new auxiliary UI.
-        if current_main_window.main_window_is_auxiliary:
-            ui.clear_main_window()
-            ui.set_main_window(
-                win_create_call(),
-                from_window=False,  # Disable from-check.
-                back_state=current_main_window.main_window_back_state,
-                suppress_warning=True,
-                is_auxiliary=True,
-            )
-            return
-
-        # Ok, no existing auxiliary stuff was found period. Just
-        # navigate forward to this UI.
-        current_main_window.main_window_replace(
-            win_create_call(), is_auxiliary=True
         )
 
     def _root_ui_achievements_press(self) -> None:
         from bauiv1lib.achievements import AchievementsWindow
 
-        if not self._ensure_signed_in_v1():
+        btn = bui.get_special_widget('achievements_button')
+
+        if not self._ensure_signed_in(origin_widget=btn):
             return
 
         wait_for_connectivity(
-            on_connected=lambda: self._auxiliary_window_nav(
+            on_connected=lambda: bui.app.ui_v1.auxiliary_window_activate(
                 win_type=AchievementsWindow,
-                win_create_call=lambda: AchievementsWindow(
-                    origin_widget=bauiv1.get_special_widget(
-                        'achievements_button'
-                    )
-                ),
+                win_create_call=lambda: AchievementsWindow(origin_widget=btn),
             )
         )
 
     def _root_ui_inbox_press(self) -> None:
         from bauiv1lib.inbox import InboxWindow
 
-        if not self._ensure_signed_in():
+        btn = bui.get_special_widget('inbox_button')
+
+        if not self._ensure_signed_in(origin_widget=btn):
             return
 
         wait_for_connectivity(
-            on_connected=lambda: self._auxiliary_window_nav(
+            on_connected=lambda: bui.app.ui_v1.auxiliary_window_activate(
                 win_type=InboxWindow,
-                win_create_call=lambda: InboxWindow(
-                    origin_widget=bauiv1.get_special_widget('inbox_button')
-                ),
+                win_create_call=lambda: InboxWindow(origin_widget=btn),
             )
         )
 
     def _root_ui_store_press(self) -> None:
-        from bauiv1lib.store.browser import StoreBrowserWindow
+        import bacommon.docui.v1 as dui1
 
-        if not self._ensure_signed_in_v1():
+        from bauiv1lib.docui import DocUIWindow
+        from bauiv1lib.store import StoreUIController
+
+        btn = bui.get_special_widget('store_button')
+
+        if not self._ensure_signed_in(origin_widget=btn):
             return
 
+        # Pop up an auxiliary window wherever we are in the nav stack.
         wait_for_connectivity(
-            on_connected=lambda: self._auxiliary_window_nav(
-                win_type=StoreBrowserWindow,
-                win_create_call=lambda: StoreBrowserWindow(
-                    origin_widget=bauiv1.get_special_widget('store_button')
+            on_connected=lambda: bui.app.ui_v1.auxiliary_window_activate(
+                win_type=DocUIWindow,
+                win_create_call=bui.CallStrict(
+                    StoreUIController().create_window,
+                    dui1.Request('/'),
+                    origin_widget=btn,
+                    uiopenstateid='classicstore',
+                ),
+                win_extra_type_id=(
+                    StoreUIController.get_window_extra_type_id()
                 ),
             )
         )
@@ -856,93 +782,89 @@ class ClassicAppMode(babase.AppMode):
         from bauiv1lib.resourcetypeinfo import ResourceTypeInfoWindow
 
         ResourceTypeInfoWindow(
-            'tickets', origin_widget=bauiv1.get_special_widget('tickets_meter')
+            'tickets', origin_widget=bui.get_special_widget('tickets_meter')
         )
 
     def _root_ui_tokens_meter_press(self) -> None:
         from bauiv1lib.resourcetypeinfo import ResourceTypeInfoWindow
 
         ResourceTypeInfoWindow(
-            'tokens', origin_widget=bauiv1.get_special_widget('tokens_meter')
+            'tokens', origin_widget=bui.get_special_widget('tokens_meter')
         )
 
     def _root_ui_trophy_meter_press(self) -> None:
         from bauiv1lib.league.rankwindow import LeagueRankWindow
 
-        if not self._ensure_signed_in_v1():
+        btn = bui.get_special_widget('trophy_meter')
+
+        if not self._ensure_signed_in(origin_widget=btn):
             return
 
-        self._auxiliary_window_nav(
+        bui.app.ui_v1.auxiliary_window_activate(
             win_type=LeagueRankWindow,
-            win_create_call=lambda: LeagueRankWindow(
-                origin_widget=bauiv1.get_special_widget('trophy_meter')
-            ),
+            win_create_call=lambda: LeagueRankWindow(origin_widget=btn),
         )
 
     def _root_ui_level_meter_press(self) -> None:
         from bauiv1lib.resourcetypeinfo import ResourceTypeInfoWindow
 
-        ResourceTypeInfoWindow(
-            'xp', origin_widget=bauiv1.get_special_widget('level_meter')
-        )
+        btn = bui.get_special_widget('level_meter')
 
-    def _root_ui_inventory_press(self) -> None:
-        from bauiv1lib.inventory import InventoryWindow
-
-        if not self._ensure_signed_in_v1():
+        if not self._ensure_signed_in(origin_widget=btn):
             return
 
-        self._auxiliary_window_nav(
-            win_type=InventoryWindow,
-            win_create_call=lambda: InventoryWindow(
-                origin_widget=bauiv1.get_special_widget('inventory_button')
+        ResourceTypeInfoWindow('xp', origin_widget=btn)
+
+    def _root_ui_inventory_press(self) -> None:
+        import bacommon.docui.v1 as dui1
+
+        from bauiv1lib.docui import DocUIWindow
+        from bauiv1lib.inventory import InventoryUIController
+
+        # Pop up an auxiliary window wherever we are in the nav stack.
+        bui.app.ui_v1.auxiliary_window_activate(
+            win_type=DocUIWindow,
+            win_create_call=bui.CallStrict(
+                InventoryUIController().create_window,
+                dui1.Request('/'),
+                origin_widget=bui.get_special_widget('inventory_button'),
+                uiopenstateid='classicinventory',
             ),
+            win_extra_type_id=InventoryUIController.get_window_extra_type_id(),
         )
 
-    def _ensure_signed_in(self) -> bool:
+    def _ensure_signed_in(self, *, origin_widget: bui.Widget | None) -> bool:
         """Make sure we're signed in (requiring modern v2 accounts)."""
-        plus = bauiv1.app.plus
+        from bauiv1lib.account.signin import show_sign_in_prompt
+
+        plus = bui.app.plus
         if plus is None:
-            bauiv1.screenmessage('This requires plus.', color=(1, 0, 0))
-            bauiv1.getsound('error').play()
+            bui.screenmessage('This requires plus.', color=(1, 0, 0))
+            bui.getsound('error').play()
             return False
         if plus.accounts.primary is None:
-            show_sign_in_prompt()
-            return False
-        return True
-
-    def _ensure_signed_in_v1(self) -> bool:
-        """Make sure we're signed in (allowing legacy v1-only accounts)."""
-        plus = bauiv1.app.plus
-        if plus is None:
-            bauiv1.screenmessage('This requires plus.', color=(1, 0, 0))
-            bauiv1.getsound('error').play()
-            return False
-        if plus.get_v1_account_state() != 'signed_in':
-            show_sign_in_prompt()
+            show_sign_in_prompt(origin_widget=origin_widget)
             return False
         return True
 
     def _root_ui_get_tokens_press(self) -> None:
-        from bauiv1lib.gettokens import GetTokensWindow
+        from bauiv1lib.gettokens import GetTokensWindow, show_get_tokens_window
 
-        if not self._ensure_signed_in():
+        btn = bui.get_special_widget('get_tokens_button')
+
+        if not self._ensure_signed_in(origin_widget=btn):
             return
 
-        self._auxiliary_window_nav(
-            win_type=GetTokensWindow,
-            win_create_call=lambda: GetTokensWindow(
-                origin_widget=bauiv1.get_special_widget('get_tokens_button')
-            ),
-        )
+        if bool(True):
+            show_get_tokens_window(origin_widget=btn, toggle=True)
+        else:
+            bui.app.ui_v1.auxiliary_window_activate(
+                win_type=GetTokensWindow,
+                win_create_call=lambda: GetTokensWindow(origin_widget=btn),
+            )
 
     def _root_ui_chest_slot_pressed(self, index: int) -> None:
-        from bauiv1lib.chest import (
-            ChestWindow0,
-            ChestWindow1,
-            ChestWindow2,
-            ChestWindow3,
-        )
+        from bauiv1lib.chest import ChestWindow
 
         widgetid: Literal[
             'chest_0_button',
@@ -953,26 +875,31 @@ class ClassicAppMode(babase.AppMode):
         winclass: type[ChestWindow]
         if index == 0:
             widgetid = 'chest_0_button'
-            winclass = ChestWindow0
+            winclass = ChestWindow
+            extratypeid = '0'
         elif index == 1:
             widgetid = 'chest_1_button'
-            winclass = ChestWindow1
+            winclass = ChestWindow
+            extratypeid = '1'
         elif index == 2:
             widgetid = 'chest_2_button'
-            winclass = ChestWindow2
+            winclass = ChestWindow
+            extratypeid = '2'
         elif index == 3:
             widgetid = 'chest_3_button'
-            winclass = ChestWindow3
+            winclass = ChestWindow
+            extratypeid = '3'
         else:
             raise RuntimeError(f'Invalid index {index}')
 
         wait_for_connectivity(
-            on_connected=lambda: self._auxiliary_window_nav(
+            on_connected=lambda: bui.app.ui_v1.auxiliary_window_activate(
                 win_type=winclass,
                 win_create_call=lambda: winclass(
                     index=index,
-                    origin_widget=bauiv1.get_special_widget(widgetid),
+                    origin_widget=bui.get_special_widget(widgetid),
                 ),
+                win_extra_type_id=extratypeid,
             )
         )
 
@@ -988,24 +915,24 @@ class ClassicAppMode(babase.AppMode):
         assert 'a' not in vals
         vals['a'] = self._current_account_id
 
-        assert babase.app.classic is not None
+        assert bui.app.classic is not None
 
         assert 'p' not in vals
-        vals['p'] = list(babase.app.classic.purchases)
+        vals['p'] = list(bui.app.classic.purchases)
 
-        cfg = babase.app.config
+        cfg = bui.app.config
         cfg[self._ACCOUNT_STATE_CONFIG_KEY] = vals
         cfg.commit()
 
     def _restore_account_state(self) -> None:
         # If we've got a stored state for the current account, restore
         # it.
-        assert babase.app.classic is not None
+        assert bui.app.classic is not None
 
         if self._current_account_id is None:
             return
 
-        cfg = babase.app.config
+        cfg = bui.app.config
         vals = cfg.get(self._ACCOUNT_STATE_CONFIG_KEY)
 
         if not isinstance(vals, dict):
@@ -1023,12 +950,66 @@ class ClassicAppMode(babase.AppMode):
         if isinstance(purchases, list):
 
             if not all(isinstance(p, str) for p in purchases):
-                babase.balog.exception('Invalid purchases state on restore.')
+                bui.balog.exception('Invalid purchases state on restore.')
             else:
                 self._current_purchases = frozenset(purchases)
                 self._current_purchases_state = self._state_from_purchases(
                     purchases
                 )
-                babase.app.classic.purchases = self._current_purchases
+                bui.app.classic.purchases = self._current_purchases
 
         _baclassic.set_account_state(vals)
+
+    @override
+    def get_dev_console_ui_tab_buttons(
+        self,
+    ) -> list[bui.DevConsoleButtonDef]:
+        return [
+            bui.DevConsoleButtonDef(
+                'MainWindow Template',
+                bui.WeakCallStrict(self._main_win_template_press),
+            ),
+            bui.DevConsoleButtonDef(
+                'DocUI Test', bui.WeakCallStrict(self._doc_ui_test_press)
+            ),
+        ]
+
+    def _main_win_template_press(self) -> None:
+        from bauiv1lib.template import show_template_main_window
+
+        # This only works if a main ui is up.
+        if bui.app.ui_v1.get_main_window() is None:
+            bui.screenmessage(
+                'This requires a main-window to be present.'
+                ' Open a menu or whatnot first.',
+                color=(1, 0, 0),
+            )
+            bui.getsound('error').play()
+            return
+
+        # Unintuitively, swish sounds come from buttons, not windows.
+        # And dev-console buttons don't make sounds. So we need to
+        # explicitly do so here.
+        bui.getsound('swish').play()
+
+        show_template_main_window()
+
+    def _doc_ui_test_press(self) -> None:
+        from bauiv1lib.docuitest import show_test_doc_ui_window
+
+        # This only works if a main ui is up.
+        if bui.app.ui_v1.get_main_window() is None:
+            bui.screenmessage(
+                'This requires a main-window to be present.'
+                ' Open a menu or whatnot first.',
+                color=(1, 0, 0),
+            )
+            bui.getsound('error').play()
+            return
+
+        # Unintuitively, swish sounds come from buttons, not windows.
+        # And dev-console buttons don't make sounds. So we need to
+        # explicitly do so here.
+        bui.getsound('swish').play()
+
+        show_test_doc_ui_window()

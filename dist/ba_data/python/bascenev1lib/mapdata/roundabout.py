@@ -4,7 +4,6 @@
 # This file was automatically generated from "roundabout.ma"
 # pylint: disable=all
 points = {}
-# noinspection PyDictCreation
 boxes = {}
 boxes['area_of_interest_bounds'] = (
     (-1.552280404, 3.189001207, -2.40908495)
@@ -26,8 +25,8 @@ points['ffa_spawn3'] = (-1.50312174, 1.498336991, -0.7271163774) + (
     1.0,
     0.1877531607,
 )
-points['flag1'] = (-3.01567985, 3.846779683, -6.702828912)
-points['flag2'] = (-0.01282460768, 3.828492613, -6.684991743)
+points['flag1'] = (-4.029562154, 3.846779683, -6.702828912)
+points['flag2'] = (1.035, 3.828492613, -6.684991743)
 points['flag_default'] = (-1.509110449, 1.447854976, -1.440324146)
 boxes['map_bounds'] = (
     (-1.615296127, 8.764115729, -2.663738363)

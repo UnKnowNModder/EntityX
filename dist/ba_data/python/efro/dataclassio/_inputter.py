@@ -28,6 +28,7 @@ from efro.dataclassio._base import (
     IOExtendedData,
     _get_multitype_type,
     IOMultiType,
+    TypeNotPresentError,
 )
 from efro.dataclassio._prep import PrepSession
 
@@ -67,6 +68,11 @@ class _Inputter:
     def run(self, values: dict) -> Any:
         """Do the thing."""
 
+        if self._codec is Codec.HUMAN:
+            raise ValueError(
+                'Codec.HUMAN is output-only and cannot be used for decoding.'
+            )
+
         outcls: type[Any]
 
         # If we're dealing with a multi-type subclass which is NOT a
@@ -91,53 +97,29 @@ class _Inputter:
                 enum_val = type_id_enum(type_id_val)
             except ValueError as exc:
 
-                # Check the fallback even if not in lossy mode, as we
-                # inform the user of its existence in errors in that
-                # case.
-                fallback = self._cls.get_unknown_type_fallback()
-
-                # Sanity check that fallback is correct type.
-                assert isinstance(fallback, self._cls | None)
-
-                # If we're in lossy mode, provide the fallback value.
-                if self._lossy:
-                    if fallback is not None:
-                        # Ok; they provided a fallback. Flag it as lossy
-                        # to prevent it from being written back out by
-                        # default, and return it.
-                        setattr(fallback, LOSSY_ATTR, True)
-                        return fallback
-                else:
-                    # If we're *not* in lossy mode, inform the user if
-                    # we *would* have succeeded if we were. This is
-                    # useful for debugging these sorts of situations.
-                    if fallback is not None:
-                        raise ValueError(
-                            'Failed loading unrecognized multitype object.'
-                            ' Note that the multitype provides a fallback'
-                            ' and thus would succeed in lossy mode.'
-                        ) from exc
+                fallback_obj = self._get_fallback_object(exc, 'unrecognized')
+                if fallback_obj is not None:
+                    return fallback_obj
 
                 # Otherwise the error stands as-is.
                 raise
 
-            outcls = self._cls.get_type_cached(enum_val)
+            try:
+                outcls = self._cls.get_type_cached(enum_val)
+            except TypeNotPresentError as exc:
+
+                fallback_obj = self._get_fallback_object(exc, 'not-present')
+                if fallback_obj is not None:
+                    return fallback_obj
+
+                # Otherwise the error stands as-is.
+                raise
+
         else:
             outcls = self._cls
 
-        # FIXME - should probably move this into _dataclass_from_input
-        # so it can work on nested values.
-        if issubclass(outcls, IOExtendedData):
-            is_ext = True
-            outcls.will_input(values)
-        else:
-            is_ext = False
-
         out = self._dataclass_from_input(outcls, '', values)
         assert isinstance(out, outcls)
-
-        if is_ext:
-            out.did_input()
 
         # If we're running in lossy mode, flag the object as such so we
         # don't allow writing it back out and potentially accidentally
@@ -151,6 +133,35 @@ class _Inputter:
             setattr(out, LOSSY_ATTR, True)
 
         return out
+
+    def _get_fallback_object(self, exc: Exception, desc: str) -> Any | None:
+        # Check the fallback even if not in lossy mode, as we
+        # inform the user of its existence in errors in that
+        # case.
+        fallback = self._cls.get_unknown_type_fallback()
+
+        # Sanity check that fallback is correct type.
+        assert isinstance(fallback, self._cls | None)
+
+        # If we're in lossy mode, provide the fallback value.
+        if self._lossy:
+            if fallback is not None:
+                # Ok; they provided a fallback. Flag it as lossy
+                # to prevent it from being written back out by
+                # default, and return it.
+                setattr(fallback, LOSSY_ATTR, True)
+                return fallback
+        else:
+            # If we're *not* in lossy mode, inform the user if
+            # we *would* have succeeded if we were. This is
+            # useful for debugging these sorts of situations.
+            if fallback is not None:
+                raise ValueError(
+                    f'Failed loading {desc} multitype object.'
+                    f' Note that the multitype provides a fallback'
+                    f' and thus would succeed in lossy mode.'
+                ) from exc
+        return None
 
     def _value_from_input(
         self,
@@ -178,7 +189,6 @@ class _Inputter:
                 )
             return value
 
-        # noinspection PyPep8
         if origin is typing.Union or origin is types.UnionType:
             # Currently, the only unions we support are None/Value
             # (translated from Optional), which we verified on prep. So
@@ -257,8 +267,18 @@ class _Inputter:
                 # Otherwise the error stands as-is.
                 raise
 
+        # IMPORTANT: datetime.datetime is a subclass of datetime.date, so the
+        # datetime.datetime check MUST come before the datetime.date check
+        # below.
         if issubclass(origin, datetime.datetime):
             return self._datetime_from_input(cls, fieldpath, value, ioattrs)
+
+        # Note: the datetime.datetime check above must precede this since
+        # datetime.datetime is a subclass of datetime.date.
+        if issubclass(origin, datetime.date) and not issubclass(
+            origin, datetime.datetime
+        ):
+            return self._date_from_input(cls, fieldpath, value, ioattrs)
 
         if issubclass(origin, datetime.timedelta):
             return self._timedelta_from_input(cls, fieldpath, value, ioattrs)
@@ -326,14 +346,21 @@ class _Inputter:
     def _do_dataclass_from_input(
         self, cls: type, fieldpath: str, values: dict
     ) -> Any:
-        # pylint: disable=too-many-locals
-        # pylint: disable=too-many-statements
         # pylint: disable=too-many-branches
         if not isinstance(values, dict):
             raise TypeError(
                 f'Expected a dict for {fieldpath} on {cls.__name__};'
                 f' got a {type(values)}.'
             )
+
+        # For special extended data types, give them a chance to mutate
+        # incoming data before construction. Note that this fires for
+        # *every* dataclass we construct, not just the top-level one.
+        if issubclass(cls, IOExtendedData):
+            is_ext = True
+            cls.will_input(values)
+        else:
+            is_ext = False
 
         prep = PrepSession(explicit=False).prep_dataclass(
             cls, recursion_level=0
@@ -342,7 +369,6 @@ class _Inputter:
 
         extra_attrs = {}
 
-        # noinspection PyDataclass
         fields = dataclasses.fields(cls)
         fields_by_name = {f.name: f for f in fields}
 
@@ -451,6 +477,9 @@ class _Inputter:
             ) from exc
         if extra_attrs:
             setattr(out, EXTRA_ATTRS_ATTR, extra_attrs)
+        if is_ext:
+            assert isinstance(out, IOExtendedData)
+            out.did_input()
         return out
 
     def _type_check_soft_default(
@@ -483,7 +512,6 @@ class _Inputter:
     ) -> Any:
         # pylint: disable=too-many-positional-arguments
         # pylint: disable=too-many-branches
-        # pylint: disable=too-many-locals
 
         if not isinstance(value, dict):
             raise TypeError(
@@ -646,7 +674,9 @@ class _Inputter:
     def _multitype_obj(self, anntype: Any, fieldpath: str, value: Any) -> Any:
         try:
             mttype = _get_multitype_type(anntype, fieldpath, value)
-        except ValueError:
+        # NOTE: We may want to tighten this up; ValueError might be
+        # covering more than the missing enum case we intend here.
+        except (ValueError, TypeNotPresentError):
             if self._lossy:
                 out = anntype.get_unknown_type_fallback()
                 if out is not None:
@@ -728,10 +758,16 @@ class _Inputter:
 
         assert self._codec is Codec.JSON
 
-        # We expect a list of 7 ints (exact datetime value dump) OR
-        # a float/int (timestamp).
+        # We expect a list of 7 ints (exact datetime value dump),
+        # a float/int (Unix timestamp), or an ISO 8601 string with Z
+        # or +00:00 suffix.
         valt = type(value)
-        if valt is float or valt is int:
+        if valt is str:
+            # Accept RFC 3339 / ISO 8601 with Z or +00:00 suffix.
+            # The replace handles Python < 3.11 where fromisoformat
+            # does not accept 'Z' directly.
+            out = datetime.datetime.fromisoformat(value.replace('Z', '+00:00'))
+        elif valt is float or valt is int:
             out = datetime.datetime.fromtimestamp(
                 value, tz=datetime.timezone.utc
             )
@@ -740,7 +776,7 @@ class _Inputter:
                 raise TypeError(
                     f'Invalid input value for "{fieldpath}"'
                     f' on "{cls.__name__}";'
-                    f' expected a timestamp or list,'
+                    f' expected a timestamp, ISO string, or list,'
                     f' got a {type(value).__name__}'
                 )
             if len(value) != 7 or not all(isinstance(x, int) for x in value):
@@ -786,3 +822,25 @@ class _Inputter:
                 days=value[0], seconds=value[1], microseconds=value[2]
             )
         return out
+
+    def _date_from_input(
+        self, cls: type, fieldpath: str, value: Any, ioattrs: IOAttrs | None
+    ) -> Any:
+        del ioattrs  # Unused; no options for date fields.
+        # Both JSON and Firestore codecs use YYYY-MM-DD strings.
+        if not isinstance(value, str):
+            raise TypeError(
+                f'Invalid input value for "{fieldpath}"'
+                f' on "{cls.__name__}";'
+                f' expected a YYYY-MM-DD date string,'
+                f' got a {type(value).__name__}.'
+            )
+        try:
+            return datetime.date.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError(
+                f'Invalid input value for "{fieldpath}"'
+                f' on "{cls.__name__}";'
+                f' expected a date in YYYY-MM-DD format,'
+                f' got {value!r}.'
+            ) from exc

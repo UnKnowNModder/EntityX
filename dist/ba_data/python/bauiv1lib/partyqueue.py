@@ -69,7 +69,7 @@ class PartyQueueWindow(bui.Window):
             )
             bui.buttonwidget(
                 edit=self._body_image,
-                on_activate_call=bui.WeakCall(
+                on_activate_call=bui.WeakCallStrict(
                     parent.on_account_press, account_id, self._body_image
                 ),
             )
@@ -131,7 +131,7 @@ class PartyQueueWindow(bui.Window):
                         widget.delete()
 
             bui.pushcall(
-                bui.Call(
+                bui.CallStrict(
                     kill_widgets,
                     [
                         self._body_image,
@@ -283,12 +283,11 @@ class PartyQueueWindow(bui.Window):
             scale=1.0,
             position=(60, self._height - 80),
             size=(50, 50),
-            label='',
+            label=bui.charstr(bui.SpecialChar.CLOSE),
+            textcolor=(1, 1, 1),
             on_activate_call=self.close,
             autoselect=True,
             color=(0.45, 0.63, 0.15),
-            icon=bui.gettexture('crossOut'),
-            iconscale=1.2,
         )
         bui.containerwidget(
             edit=self._root_widget, cancel_button=self._cancel_button
@@ -319,7 +318,7 @@ class PartyQueueWindow(bui.Window):
 
         # Update at roughly 30fps.
         self._update_timer = bui.AppTimer(
-            0.033, bui.WeakCall(self.update), repeat=True
+            0.033, bui.WeakCallStrict(self.update), repeat=True
         )
         self.update()
 
@@ -455,7 +454,6 @@ class PartyQueueWindow(bui.Window):
 
     def on_update_response(self, response: dict[str, Any] | None) -> None:
         """We've received a response from an update to the server."""
-        # pylint: disable=too-many-branches
         if not self._root_widget:
             return
 
@@ -592,7 +590,7 @@ class PartyQueueWindow(bui.Window):
                 't': self._boost_tickets,
                 'q': self._queue_id,
             },
-            callback=bui.WeakCall(self.on_update_response),
+            callback=bui.WeakCallPartial(self.on_update_response),
         )
         # Let's not run these immediately (since they may be rapid-fire,
         # just bucket them until the next tick).
@@ -655,7 +653,7 @@ class PartyQueueWindow(bui.Window):
             self._last_transaction_time = current_time
             plus.add_v1_account_transaction(
                 {'type': 'PARTY_QUEUE_QUERY', 'q': self._queue_id},
-                callback=bui.WeakCall(self.on_update_response),
+                callback=bui.WeakCallPartial(self.on_update_response),
             )
             plus.run_v1_account_transactions()
 

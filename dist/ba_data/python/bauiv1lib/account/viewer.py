@@ -71,12 +71,11 @@ class AccountViewerWindow(PopupWindow):
             position=(50, self._height - 30),
             size=(50, 50),
             scale=0.5,
-            label='',
+            label=bui.charstr(bui.SpecialChar.CLOSE),
+            textcolor=(1, 1, 1),
             color=bg_color,
             on_activate_call=self._on_cancel_press,
             autoselect=True,
-            icon=bui.gettexture('crossOut'),
-            iconscale=1.2,
         )
 
         self._title_text = bui.textwidget(
@@ -149,7 +148,7 @@ class AccountViewerWindow(PopupWindow):
                 'accountID': self._account_id,
                 'profileID': self._profile_id,
             },
-            callback=bui.WeakCall(self._on_query_response),
+            callback=bui.WeakCallPartial(self._on_query_response),
         )
 
     def popup_menu_selected_choice(
@@ -221,10 +220,10 @@ class AccountViewerWindow(PopupWindow):
         )
 
     def _on_query_response(self, data: dict[str, Any] | None) -> None:
+        # pylint: disable=too-many-statements
         # FIXME: Tidy this up.
         # pylint: disable=too-many-locals
         # pylint: disable=too-many-branches
-        # pylint: disable=too-many-statements
         # pylint: disable=too-many-nested-blocks
         assert bui.app.classic is not None
         if data is None:

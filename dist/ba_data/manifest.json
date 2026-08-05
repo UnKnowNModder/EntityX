@@ -1,0 +1,11 @@
+{
+ "asset_package_versions": {
+  "a-0.babuiltinassets.260606": {
+   "flavor_manifests": {
+    "constant": "6119cce59862c7e246de2f2d0879d86b55ae8619dd01394f39cb401d075b088b",
+    "language/eng": "6119cce59862c7e246de2f2d0879d86b55ae8619dd01394f39cb401d075b088b",
+    "textures/null.gamma.regular": "997b71b68a6b4c836fe9c44e49674abd9baea8234e26560b59a9d068d8c45535"
+   }
+  }
+ }
+}

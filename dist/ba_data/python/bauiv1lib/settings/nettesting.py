@@ -90,6 +90,7 @@ class NetTestingWindow(bui.MainWindow):
         else:
             self._back_button = bui.buttonwidget(
                 parent=self._root_widget,
+                id=f'{self.main_window_id_prefix}|back',
                 position=(46, yoffs - 77),
                 size=(60, 60),
                 scale=0.9,
@@ -108,6 +109,7 @@ class NetTestingWindow(bui.MainWindow):
         xextra = -80 if uiscale is bui.UIScale.SMALL else 0
         self._copy_button = bui.buttonwidget(
             parent=self._root_widget,
+            id=f'{self.main_window_id_prefix}|copy',
             position=(
                 self._width * 0.5 + scroll_width * 0.5 - 210 + 80 + xextra,
                 yoffs - 79,
@@ -121,6 +123,7 @@ class NetTestingWindow(bui.MainWindow):
 
         self._settings_button = bui.buttonwidget(
             parent=self._root_widget,
+            id=f'{self.main_window_id_prefix}|settings',
             position=(
                 self._width * 0.5 + scroll_width * 0.5 - 110 + 80 + xextra,
                 yoffs - 77,
@@ -151,13 +154,18 @@ class NetTestingWindow(bui.MainWindow):
             autoselect=True,
             border_opacity=0.4,
         )
-        self._rows = bui.columnwidget(parent=self._scroll)
+        self._rows = bui.columnwidget(
+            parent=self._scroll,
+            id=f'{self.main_window_id_prefix}|content',
+        )
 
         # Now kick off the tests.
         # Pass a weak-ref to this window so we don't keep it alive
         # if we back out before it completes. Also set is as daemon
         # so it doesn't keep the app running if the user is trying to quit.
-        Thread(target=bui.Call(_run_diagnostics, weakref.ref(self))).start()
+        Thread(
+            target=bui.CallStrict(_run_diagnostics, weakref.ref(self))
+        ).start()
 
     @override
     def get_main_window_state(self) -> bui.MainWindowState:
@@ -168,6 +176,10 @@ class NetTestingWindow(bui.MainWindow):
                 transition=transition, origin_widget=origin_widget
             )
         )
+
+    @override
+    def main_window_should_preserve_selection(self) -> bool:
+        return True
 
     def print(self, text: str, color: tuple[float, float, float]) -> None:
         """Print text to our console thingie."""
@@ -196,15 +208,10 @@ class NetTestingWindow(bui.MainWindow):
     def _show_val_testing(self) -> None:
         assert bui.app.classic is not None
 
-        # no-op if we're not in control.
-        if not self.main_window_has_control():
-            return
-
-        self.main_window_replace(get_net_val_testing_window())
+        self.main_window_replace(get_net_val_testing_window)
 
 
 def _run_diagnostics(weakwin: weakref.ref[NetTestingWindow]) -> None:
-    # pylint: disable=too-many-statements
 
     from efro.util import utc_now
 

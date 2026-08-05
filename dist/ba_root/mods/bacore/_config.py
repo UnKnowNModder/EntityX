@@ -16,10 +16,9 @@ class Config(Storage):
 		"""creates essential files."""
 		if not self.path.exists():
 			config = {}
-			config["bot"] = {"enable": False, "token": "YOUR BOT TOKEN HERE.", "owner_id": None}
 			config["tournament"] = {"webhook_url": "YOUR RESULT ANNOUNCEMENT WEBHOOK URL HERE.", "include_score": True}
-			config["stats"] = {"enable": True, "leaderboard": True}
-			config["auth_verification"] = {"enable": True, "days": 7}
+			config["stats"] = {"enable": False, "leaderboard": True}
+			config["auth_verification"] = {"enable": False, "days": 7}
 			config[Utility.WHITELIST] = False
 			config[Utility.SPECTATOR] = True
 			self.commit(config)

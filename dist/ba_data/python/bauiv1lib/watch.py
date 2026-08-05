@@ -30,7 +30,6 @@ class WatchWindow(bui.MainWindow):
         transition: str | None = 'in_right',
         origin_widget: bui.Widget | None = None,
     ):
-        # pylint: disable=too-many-locals
         from bauiv1lib.tabs import TabRow
 
         bui.set_analytics_screen('Watch Window')
@@ -98,6 +97,7 @@ class WatchWindow(bui.MainWindow):
         else:
             self._back_button = btn = bui.buttonwidget(
                 parent=self._root_widget,
+                id=f'{self.main_window_id_prefix}|back',
                 autoselect=True,
                 position=(70, self.yoffs - 50),
                 size=(60, 60),
@@ -149,6 +149,7 @@ class WatchWindow(bui.MainWindow):
             ),
             size=(self._scroll_width - 2.0 * tab_bar_inset, 50),
             on_select_call=self._set_tab,
+            idprefix=self.main_window_id_prefix,
         )
 
         first_tab = self._tab_row.tabs[tabdefs[0][0]]
@@ -175,7 +176,11 @@ class WatchWindow(bui.MainWindow):
         )
         self._tab_container: bui.Widget | None = None
 
-        self._restore_state()
+        try:
+            current_tab = self.TabID(bui.app.config.get('Watch Tab'))
+        except ValueError:
+            current_tab = self.TabID.MY_REPLAYS
+        self._set_tab(current_tab)
 
     @override
     def get_main_window_state(self) -> bui.MainWindowState:
@@ -188,11 +193,10 @@ class WatchWindow(bui.MainWindow):
         )
 
     @override
-    def on_main_window_close(self) -> None:
-        self._save_state()
+    def main_window_should_preserve_selection(self) -> bool:
+        return True
 
     def _set_tab(self, tab_id: TabID) -> None:
-        # pylint: disable=too-many-locals
 
         if self._current_tab == tab_id:
             return
@@ -204,7 +208,6 @@ class WatchWindow(bui.MainWindow):
         cfg.commit()
 
         # Update tab colors based on which is selected.
-        # tabs.update_tab_button_colors(self._tab_buttons, tab)
         self._tab_row.update_appearance(tab_id)
 
         if self._tab_container:
@@ -240,7 +243,7 @@ class WatchWindow(bui.MainWindow):
             v = c_height - 30
             bui.textwidget(
                 parent=cnt,
-                position=(c_width * 0.5, v),
+                position=(c_width * 0.5, v + 6.0),
                 color=(0.6, 1.0, 0.6),
                 scale=0.7,
                 size=(0, 0),
@@ -290,6 +293,7 @@ class WatchWindow(bui.MainWindow):
             tscl = 1.0 if uiscale is bui.UIScale.SMALL else 1.2
             self._my_replays_watch_replay_button = btn1 = bui.buttonwidget(
                 parent=cnt,
+                id=f'{self.main_window_id_prefix}|watch',
                 size=(b_width, b_height),
                 position=(btnh, btnv),
                 button_type='square',
@@ -310,6 +314,7 @@ class WatchWindow(bui.MainWindow):
             btnv -= b_height + b_space_extra
             bui.buttonwidget(
                 parent=cnt,
+                id=f'{self.main_window_id_prefix}|rename',
                 size=(b_width, b_height),
                 position=(btnh, btnv),
                 button_type='square',
@@ -323,6 +328,7 @@ class WatchWindow(bui.MainWindow):
             btnv -= b_height + b_space_extra
             bui.buttonwidget(
                 parent=cnt,
+                id=f'{self.main_window_id_prefix}|delete',
                 size=(b_width, b_height),
                 position=(btnh, btnv),
                 button_type='square',
@@ -342,7 +348,11 @@ class WatchWindow(bui.MainWindow):
             )
             bui.containerwidget(edit=cnt, selected_child=scrlw)
             self._columnwidget = bui.columnwidget(
-                parent=scrlw, left_border=10, border=2, margin=0
+                parent=scrlw,
+                id=f'{self.main_window_id_prefix}|column',
+                left_border=10,
+                border=2,
+                margin=0,
             )
 
             bui.widget(
@@ -393,7 +403,7 @@ class WatchWindow(bui.MainWindow):
 
                 bs.new_host_session(mainmenu.MainMenuSession)
 
-        bui.fade_screen(False, endcall=bui.Call(bui.pushcall, do_it))
+        bui.fade_screen(False, endcall=bui.CallStrict(bui.pushcall, do_it))
         bui.containerwidget(edit=self._root_widget, transition='out_left')
 
     def _on_my_replay_rename_press(self) -> None:
@@ -413,6 +423,7 @@ class WatchWindow(bui.MainWindow):
             size=(c_width, c_height),
             transition='in_scale',
             parent=bui.get_special_widget('overlay_stack'),
+            darken_behind=True,
         )
         dname = self._get_replay_display_name(self._my_replay_selected)
         bui.textwidget(
@@ -429,6 +440,7 @@ class WatchWindow(bui.MainWindow):
         )
         self._my_replay_rename_text = txt = bui.textwidget(
             parent=cnt,
+            id=f'{self.main_window_id_prefix}|replayrenametext',
             size=(c_width * 0.8, 40),
             h_align='left',
             v_align='center',
@@ -442,8 +454,9 @@ class WatchWindow(bui.MainWindow):
         )
         cbtn = bui.buttonwidget(
             parent=cnt,
+            id=f'{self.main_window_id_prefix}|replayrenamecancel',
             label=bui.Lstr(resource='cancelText'),
-            on_activate_call=bui.Call(
+            on_activate_call=bui.CallStrict(
                 lambda c: bui.containerwidget(edit=c, transition='out_scale'),
                 cnt,
             ),
@@ -453,10 +466,11 @@ class WatchWindow(bui.MainWindow):
         )
         okb = bui.buttonwidget(
             parent=cnt,
+            id=f'{self.main_window_id_prefix}|replayrename',
             label=bui.Lstr(resource=f'{self._r}.renameText'),
             size=(180, 60),
             position=(c_width - 230, 30),
-            on_activate_call=bui.Call(
+            on_activate_call=bui.CallStrict(
                 self._rename_my_replay, self._my_replay_selected
             ),
             autoselect=True,
@@ -542,9 +556,9 @@ class WatchWindow(bui.MainWindow):
                     )
                 ],
             ),
-            bui.Call(self._delete_replay, self._my_replay_selected),
-            450,
-            150,
+            bui.CallStrict(self._delete_replay, self._my_replay_selected),
+            width=450,
+            height=150,
         )
 
     def _get_replay_display_name(self, replay: str) -> str:
@@ -593,13 +607,14 @@ class WatchWindow(bui.MainWindow):
         for i, name in enumerate(names):
             txt = bui.textwidget(
                 parent=self._columnwidget,
+                id=f'{self.main_window_id_prefix}|replay{i}',
                 size=(self._my_replays_scroll_width / t_scale, 30),
                 selectable=True,
                 color=(
                     (1.0, 1, 0.4) if name == '__lastReplay.brp' else (1, 1, 1)
                 ),
                 always_highlight=True,
-                on_select_call=bui.Call(self._on_my_replay_select, name),
+                on_select_call=bui.CallStrict(self._on_my_replay_select, name),
                 on_activate_call=self._my_replays_watch_replay_button.activate,
                 text=self._get_replay_display_name(name),
                 h_align='left',
@@ -613,58 +628,3 @@ class WatchWindow(bui.MainWindow):
                     up_widget=self._tab_row.tabs[self.TabID.MY_REPLAYS].button,
                 )
                 self._my_replay_selected = name
-
-    def _save_state(self) -> None:
-        try:
-            sel = self._root_widget.get_selected_child()
-            selected_tab_ids = [
-                tab_id
-                for tab_id, tab in self._tab_row.tabs.items()
-                if sel == tab.button
-            ]
-            if sel == self._back_button:
-                sel_name = 'Back'
-            elif selected_tab_ids:
-                assert len(selected_tab_ids) == 1
-                sel_name = f'Tab:{selected_tab_ids[0].value}'
-            elif sel == self._tab_container:
-                sel_name = 'TabContainer'
-            else:
-                raise ValueError(f'unrecognized selection {sel}')
-            assert bui.app.classic is not None
-            bui.app.ui_v1.window_states[type(self)] = {'sel_name': sel_name}
-        except Exception:
-            logging.exception('Error saving state for %s.', self)
-
-    def _restore_state(self) -> None:
-        try:
-            sel: bui.Widget | None
-            assert bui.app.classic is not None
-            sel_name = bui.app.ui_v1.window_states.get(type(self), {}).get(
-                'sel_name'
-            )
-            assert isinstance(sel_name, (str, type(None)))
-            try:
-                current_tab = self.TabID(bui.app.config.get('Watch Tab'))
-            except ValueError:
-                current_tab = self.TabID.MY_REPLAYS
-            self._set_tab(current_tab)
-
-            if sel_name == 'Back':
-                sel = self._back_button
-            elif sel_name == 'TabContainer':
-                sel = self._tab_container
-            elif isinstance(sel_name, str) and sel_name.startswith('Tab:'):
-                try:
-                    sel_tab_id = self.TabID(sel_name.split(':')[-1])
-                except ValueError:
-                    sel_tab_id = self.TabID.MY_REPLAYS
-                sel = self._tab_row.tabs[sel_tab_id].button
-            else:
-                if self._tab_container is not None:
-                    sel = self._tab_container
-                else:
-                    sel = self._tab_row.tabs[current_tab].button
-            bui.containerwidget(edit=self._root_widget, selected_child=sel)
-        except Exception:
-            logging.exception('Error restoring state for %s.', self)

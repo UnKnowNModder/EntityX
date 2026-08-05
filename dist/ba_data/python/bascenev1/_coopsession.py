@@ -1,6 +1,7 @@
 # Released under the MIT License. See LICENSE for details.
 #
 """Functionality related to coop-mode sessions."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
@@ -11,7 +12,7 @@ import _bascenev1
 from bascenev1._session import Session
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Sequence
+    from typing import Any, Callable
 
     import bascenev1
 
@@ -62,11 +63,7 @@ class CoopSession(Session):
         else:
             submit_score = True
 
-        # print('FIXME: COOP SESSION WOULD CALC DEPS.')
-        depsets: Sequence[bascenev1.DependencySet] = []
-
         super().__init__(
-            depsets,
             team_names=TEAM_NAMES,
             team_colors=TEAM_COLORS,
             min_players=min_players,
@@ -185,7 +182,9 @@ class CoopSession(Session):
     def on_player_leave(self, sessionplayer: bascenev1.SessionPlayer) -> None:
         super().on_player_leave(sessionplayer)
 
-        _bascenev1.timer(2.0, babase.WeakCall(self._handle_empty_activity))
+        _bascenev1.timer(
+            2.0, babase.WeakCallStrict(self._handle_empty_activity)
+        )
 
     def _handle_empty_activity(self) -> None:
         """Handle cases where all players have left the current activity."""
@@ -260,18 +259,17 @@ class CoopSession(Session):
             with activity.context:
                 activity.end(results={'outcome': 'restart'}, force=True)
 
-    # noinspection PyUnresolvedReferences
     @override
     def on_activity_end(
         self, activity: bascenev1.Activity, results: Any
     ) -> None:
+        # pylint: disable=too-many-statements
         """Method override for co-op sessions.
 
         Jumps between co-op games and score screens.
         """
         # pylint: disable=too-many-branches
         # pylint: disable=too-many-locals
-        # pylint: disable=too-many-statements
         # pylint: disable=cyclic-import
         from bascenev1lib.activity.coopscore import CoopScoreScreen
         from bascenev1lib.tutorial import TutorialActivity
@@ -359,7 +357,7 @@ class CoopSession(Session):
                             {
                                 'label': babase.Lstr(resource='restartText'),
                                 'resume_on_call': False,
-                                'call': babase.WeakCall(
+                                'call': babase.WeakCallPartial(
                                     self._on_tournament_restart_menu_press
                                 ),
                             }
@@ -368,7 +366,7 @@ class CoopSession(Session):
                         self._custom_menu_ui = [
                             {
                                 'label': babase.Lstr(resource='restartText'),
-                                'call': babase.WeakCall(self.restart),
+                                'call': babase.WeakCallStrict(self.restart),
                             }
                         ]
 

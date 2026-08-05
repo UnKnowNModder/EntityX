@@ -246,7 +246,6 @@ class RaceGame(bs.TeamGameActivity[Player, Team]):
 
     def _handle_race_point_collide(self) -> None:
         # FIXME: Tidy this up.
-        # pylint: disable=too-many-statements
         # pylint: disable=too-many-branches
         # pylint: disable=too-many-nested-blocks
         collision = bs.getcollision()
@@ -649,7 +648,8 @@ class RaceGame(bs.TeamGameActivity[Player, Team]):
             pos[2] + random.uniform(*z_range),
         )
         bs.timer(
-            random.uniform(0.0, 2.0), bs.WeakCall(self._spawn_bomb_at_pos, pos)
+            random.uniform(0.0, 2.0),
+            bs.WeakCallStrict(self._spawn_bomb_at_pos, pos),
         )
 
     def _spawn_bomb_at_pos(self, pos: Sequence[float]) -> None:
@@ -690,7 +690,7 @@ class RaceGame(bs.TeamGameActivity[Player, Team]):
         assert rmine is not None
         if not rmine.mine:
             self._flash_mine(m_index)
-            bs.timer(0.95, bs.Call(self._make_mine, m_index))
+            bs.timer(0.95, bs.CallStrict(self._make_mine, m_index))
 
     @override
     def spawn_player(self, player: Player) -> bs.Actor:
@@ -700,7 +700,6 @@ class RaceGame(bs.TeamGameActivity[Player, Team]):
             # FIXME: This is not type-safe!
             #   This call is expected to always return an Actor!
             #   Perhaps we need something like can_spawn_player()...
-            # noinspection PyTypeChecker
             return None  # type: ignore
         pos = self._regions[player.last_region].pos
 

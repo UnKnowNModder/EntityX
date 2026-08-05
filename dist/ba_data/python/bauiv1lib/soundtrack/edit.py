@@ -24,8 +24,6 @@ class SoundtrackEditWindow(bui.MainWindow):
         transition: str | None = 'in_right',
         origin_widget: bui.Widget | None = None,
     ):
-        # pylint: disable=too-many-statements
-        # pylint: disable=too-many-locals
 
         appconfig = bui.app.config
         self._r = 'editSoundtrackWindow'
@@ -242,6 +240,11 @@ class SoundtrackEditWindow(bui.MainWindow):
             )
         )
 
+    @override
+    def main_window_should_preserve_selection(self) -> bool:
+        # Todo: wire this up.
+        return False
+
     def _refresh(self) -> None:
         for widget in self._col.get_children():
             widget.delete()
@@ -308,7 +311,7 @@ class SoundtrackEditWindow(bui.MainWindow):
                 size=(230, 32),
                 label=self._get_entry_button_display_name(entry),
                 text_scale=0.6,
-                on_activate_call=bui.Call(
+                on_activate_call=bui.CallStrict(
                     self._get_entry, song_type, entry, type_name
                 ),
                 icon=(
@@ -359,7 +362,9 @@ class SoundtrackEditWindow(bui.MainWindow):
                 size=(50, 32),
                 label=bui.Lstr(resource=f'{self._r}.testText'),
                 text_scale=0.6,
-                on_activate_call=bui.Call(self._test, bs.MusicType(song_type)),
+                on_activate_call=bui.CallStrict(
+                    self._test, bs.MusicType(song_type)
+                ),
                 up_widget=(
                     prev_test_button
                     if prev_test_button is not None
@@ -422,15 +427,17 @@ class SoundtrackEditWindow(bui.MainWindow):
             'soundtrack': self._soundtrack,
             'last_edited_song_type': song_type,
         }
-        new_win = music.get_music_player().select_entry(
-            bui.Call(self._restore_editor, state, song_type),
-            entry,
-            selection_target_name,
+        new_win = self.main_window_replace(
+            lambda: music.get_music_player().select_entry(
+                bui.CallPartial(self._restore_editor, state, song_type),
+                entry,
+                selection_target_name,
+            )
         )
-        self.main_window_replace(new_win)
 
         # Once we've set the new window, grab the back-state; we'll use
         # that to jump back here after selection completes.
+        assert new_win is not None
         assert new_win.main_window_back_state is not None
         state['back_state'] = new_win.main_window_back_state
 

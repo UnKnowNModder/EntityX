@@ -1,6 +1,7 @@
 # Released under the MIT License. See LICENSE for details.
 #
 """Predefined tabs for the dev console."""
+
 from __future__ import annotations
 
 import math
@@ -117,16 +118,32 @@ class DevConsoleTabUI(DevConsoleTab):
 
     @override
     def refresh(self) -> None:
-        from babase._mgen.enums import UIScale
+        from babase._generated.enums import UIScale
 
-        xoffs = -305
-        yoffs = 10
+        xoffs = -305.0
+        yoffs = 10.0
+
+        custom_buttons = _babase.app.mode.get_dev_console_ui_tab_buttons()
+        cboffs = 50
+        cbwidth = 180
+        cbspacing = 10
+
+        if custom_buttons:
+            cbtotalwidth = (
+                len(custom_buttons) * cbwidth
+                + max(0, len(custom_buttons) - 1) * cbspacing
+                + cboffs
+            )
+        else:
+            cbtotalwidth = 0
+
+        xoffs -= cbtotalwidth * 0.5
 
         self.text(
             'A UI should either fit in the virtual safe area'
             ' or dynamically respond to screen size changes.',
             scale=0.6,
-            pos=(xoffs + 15, yoffs + 65),
+            pos=(xoffs + 8, yoffs + 65),
             h_align='left',
             v_align='center',
         )
@@ -164,6 +181,19 @@ class DevConsoleTabUI(DevConsoleTab):
                 ),
             )
             x += bwidth + 2
+
+        if custom_buttons:
+            x += cboffs
+            for custom_button in custom_buttons:
+                self.button(
+                    custom_button.name,
+                    pos=(xoffs + x, yoffs + 15),
+                    size=(cbwidth, 40),
+                    label_scale=0.6,
+                    call=custom_button.call,
+                    corner_radius=10.0,
+                )
+                x += cbwidth + cbspacing
 
     def toggle_ui_overlay(self) -> None:
         """Toggle UI overlay drawing."""
@@ -237,7 +267,6 @@ class Table[T]:
 
     def refresh(self, tab: DevConsoleTab) -> None:
         """Call to refresh the data."""
-        # pylint: disable=too-many-locals
 
         margin_top = 50.0
         margin_bottom = 10.0
@@ -507,7 +536,6 @@ class DevConsoleTabLogging(DevConsoleTab):
         height: float,
     ) -> None:
         # pylint: disable=too-many-positional-arguments
-        # pylint: disable=too-many-locals
 
         xoffs = -15.0
         bwidth = 80.0
@@ -544,12 +572,15 @@ class DevConsoleTabLogging(DevConsoleTab):
         index = 0
         effectivelevel = logger.getEffectiveLevel()
         notsetname = 'Not Set'
+        bradius = 5.0
+        bspacing = 2.0
         tab.button(
             notsetname,
             pos=(x + width - bwidth * 6.5 + xoffs + 1.0, y + 5.0),
-            size=(bwidth * 1.0 - 2.0, height - 10),
+            size=(bwidth * 1.0 - bspacing, height - 10),
             label_scale=btextscale,
             style='white_bright' if level == logging.NOTSET else 'black',
+            corner_radius=bradius,
             call=partial(
                 self._set_entry_val, entry_index, entry, logging.NOTSET
             ),
@@ -558,13 +589,14 @@ class DevConsoleTabLogging(DevConsoleTab):
         tab.button(
             'Debug',
             pos=(x + width - bwidth * 5 + xoffs + 1.0, y + 5.0),
-            size=(bwidth - 2.0, height - 10),
+            size=(bwidth - bspacing, height - 10),
             label_scale=btextscale,
             style=(
                 'white_bright'
                 if level == logging.DEBUG
                 else 'blue' if effectivelevel <= logging.DEBUG else 'black'
             ),
+            corner_radius=bradius,
             call=partial(
                 self._set_entry_val, entry_index, entry, logging.DEBUG
             ),
@@ -573,26 +605,28 @@ class DevConsoleTabLogging(DevConsoleTab):
         tab.button(
             'Info',
             pos=(x + width - bwidth * 4 + xoffs + 1.0, y + 5.0),
-            size=(bwidth - 2.0, height - 10),
+            size=(bwidth - bspacing, height - 10),
             label_scale=btextscale,
             style=(
                 'white_bright'
                 if level == logging.INFO
                 else 'white' if effectivelevel <= logging.INFO else 'black'
             ),
+            corner_radius=bradius,
             call=partial(self._set_entry_val, entry_index, entry, logging.INFO),
         )
         index += 1
         tab.button(
             'Warning',
             pos=(x + width - bwidth * 3 + xoffs + 1.0, y + 5.0),
-            size=(bwidth - 2.0, height - 10),
+            size=(bwidth - bspacing, height - 10),
             label_scale=btextscale,
             style=(
                 'white_bright'
                 if level == logging.WARNING
                 else 'yellow' if effectivelevel <= logging.WARNING else 'black'
             ),
+            corner_radius=bradius,
             call=partial(
                 self._set_entry_val, entry_index, entry, logging.WARNING
             ),
@@ -601,13 +635,14 @@ class DevConsoleTabLogging(DevConsoleTab):
         tab.button(
             'Error',
             pos=(x + width - bwidth * 2 + xoffs + 1.0, y + 5.0),
-            size=(bwidth - 2.0, height - 10),
+            size=(bwidth - bspacing, height - 10),
             label_scale=btextscale,
             style=(
                 'white_bright'
                 if level == logging.ERROR
                 else 'red' if effectivelevel <= logging.ERROR else 'black'
             ),
+            corner_radius=bradius,
             call=partial(
                 self._set_entry_val, entry_index, entry, logging.ERROR
             ),
@@ -616,7 +651,7 @@ class DevConsoleTabLogging(DevConsoleTab):
         tab.button(
             'Critical',
             pos=(x + width - bwidth * 1 + xoffs + 1.0, y + 5.0),
-            size=(bwidth - 2.0, height - 10),
+            size=(bwidth - bspacing, height - 10),
             label_scale=btextscale,
             style=(
                 'white_bright'
@@ -625,6 +660,7 @@ class DevConsoleTabLogging(DevConsoleTab):
                     'purple' if effectivelevel <= logging.CRITICAL else 'black'
                 )
             ),
+            corner_radius=bradius,
             call=partial(
                 self._set_entry_val, entry_index, entry, logging.CRITICAL
             ),

@@ -49,6 +49,7 @@ class WaitForConnectivityWindow(bui.Window):
         self._on_cancel = on_cancel
         self._width = 650
         self._height = 300
+        self._idprefix = bui.app.ui_v1.new_id_prefix('connectivity')
         super().__init__(
             root_widget=bui.containerwidget(
                 size=(self._width, self._height),
@@ -90,6 +91,7 @@ class WaitForConnectivityWindow(bui.Window):
         self._info_text_str = ''
         cancel_button = bui.buttonwidget(
             parent=self._root_widget,
+            id=f'{self._idprefix}|cancel',
             autoselect=True,
             position=(50, 30),
             size=(150, 50),
@@ -98,7 +100,7 @@ class WaitForConnectivityWindow(bui.Window):
         )
         bui.containerwidget(edit=self._root_widget, cancel_button=cancel_button)
         self._update_timer = bui.AppTimer(
-            0.113, bui.WeakCall(self._update), repeat=True
+            0.113, bui.WeakCallStrict(self._update), repeat=True
         )
 
     def _update(self) -> None:

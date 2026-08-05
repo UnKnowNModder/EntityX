@@ -6,14 +6,12 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from functools import partial
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, assert_never, override
 
 import bacommon.cloud
-import bacommon.bs
+import bacommon.classic
 import bauiv1 as bui
-
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -70,8 +68,11 @@ class GetTokensWindow(bui.MainWindow):
         self,
         transition: str | None = 'in_right',
         origin_widget: bui.Widget | None = None,
+        auxiliary_style: bool = True,
     ):
-        # pylint: disable=too-many-locals
+
+        self._auxiliary_style = auxiliary_style
+        self._uiopenstate = bui.UIOpenState('gettokens')
         bwidthstd = 170
         bwidthwide = 300
         ycolor = (0, 0, 0.3)
@@ -106,7 +107,12 @@ class GetTokensWindow(bui.MainWindow):
                     _TxtDef(
                         bui.Lstr(
                             resource='tokens.numTokensText',
-                            subs=[('${COUNT}', str(bacommon.bs.TOKENS1_COUNT))],
+                            subs=[
+                                (
+                                    '${COUNT}',
+                                    str(bacommon.classic.TOKENS1_COUNT),
+                                )
+                            ],
                         ),
                         pos=(bwidthstd * 0.5, pos1),
                         color=(1.1, 1.05, 1.0),
@@ -146,7 +152,12 @@ class GetTokensWindow(bui.MainWindow):
                     _TxtDef(
                         bui.Lstr(
                             resource='tokens.numTokensText',
-                            subs=[('${COUNT}', str(bacommon.bs.TOKENS2_COUNT))],
+                            subs=[
+                                (
+                                    '${COUNT}',
+                                    str(bacommon.classic.TOKENS2_COUNT),
+                                )
+                            ],
                         ),
                         pos=(bwidthstd * 0.5, pos1),
                         color=(1.1, 1.05, 1.0),
@@ -186,7 +197,12 @@ class GetTokensWindow(bui.MainWindow):
                     _TxtDef(
                         bui.Lstr(
                             resource='tokens.numTokensText',
-                            subs=[('${COUNT}', str(bacommon.bs.TOKENS3_COUNT))],
+                            subs=[
+                                (
+                                    '${COUNT}',
+                                    str(bacommon.classic.TOKENS3_COUNT),
+                                )
+                            ],
                         ),
                         pos=(bwidthstd * 0.5, pos1),
                         color=(1.1, 1.05, 1.0),
@@ -226,7 +242,12 @@ class GetTokensWindow(bui.MainWindow):
                     _TxtDef(
                         bui.Lstr(
                             resource='tokens.numTokensText',
-                            subs=[('${COUNT}', str(bacommon.bs.TOKENS4_COUNT))],
+                            subs=[
+                                (
+                                    '${COUNT}',
+                                    str(bacommon.classic.TOKENS4_COUNT),
+                                )
+                            ],
                         ),
                         pos=(bwidthstd * 0.5, pos1),
                         color=(1.1, 1.05, 1.0),
@@ -343,9 +364,12 @@ class GetTokensWindow(bui.MainWindow):
                 color=(0.3, 0.23, 0.36),
                 scale=scale,
                 toolbar_visibility=(
-                    'get_tokens'
+                    'menu_tokens'
                     if uiscale is bui.UIScale.SMALL
                     else 'menu_full'
+                ),
+                toolbar_cancel_button_style=(
+                    'close' if auxiliary_style else 'back'
                 ),
             ),
             transition=transition,
@@ -353,6 +377,8 @@ class GetTokensWindow(bui.MainWindow):
             # We're affected by screen size only at small ui-scale.
             refresh_on_screen_size_changes=uiscale is bui.UIScale.SMALL,
         )
+        # Am seeing preserve-selection try to restore this sometimes.
+        bui.widget(edit=self._root_widget, allow_preserve_selection=False)
 
         if uiscale is bui.UIScale.SMALL:
             bui.containerwidget(
@@ -362,12 +388,17 @@ class GetTokensWindow(bui.MainWindow):
         else:
             self._back_button = bui.buttonwidget(
                 parent=self._root_widget,
+                id=f'{self.main_window_id_prefix}|back',
                 position=(60, self._yoffs - 90),
                 size=((60, 60)),
                 scale=1.0,
                 autoselect=True,
-                label=(bui.charstr(bui.SpecialChar.BACK)),
-                button_type=('backSmall'),
+                label=bui.charstr(
+                    bui.SpecialChar.CLOSE
+                    if auxiliary_style
+                    else bui.SpecialChar.BACK
+                ),
+                button_type=None if auxiliary_style else 'backSmall',
                 on_activate_call=self.main_window_back,
             )
             bui.containerwidget(
@@ -422,7 +453,7 @@ class GetTokensWindow(bui.MainWindow):
         self._state = self.State.LOADING
 
         self._update_timer = bui.AppTimer(
-            0.789, bui.WeakCall(self._update), repeat=True
+            0.789, bui.WeakCallStrict(self._update), repeat=True
         )
         self._update()
 
@@ -430,11 +461,22 @@ class GetTokensWindow(bui.MainWindow):
     def get_main_window_state(self) -> bui.MainWindowState:
         # Support recreating our window for back/refresh purposes.
         cls = type(self)
+
+        # Pull everything out of self here. If we do it below in the lambda,
+        # we'll keep self alive which is bad.
+        auxiliary_style = self._auxiliary_style
+
         return bui.BasicMainWindowState(
             create_call=lambda transition, origin_widget: cls(
-                transition=transition, origin_widget=origin_widget
+                transition=transition,
+                origin_widget=origin_widget,
+                auxiliary_style=auxiliary_style,
             )
         )
+
+    @override
+    def main_window_should_preserve_selection(self) -> bool:
+        return True
 
     def _update(self) -> None:
         # No-op if our underlying widget is dead or on its way out.
@@ -455,7 +497,9 @@ class GetTokensWindow(bui.MainWindow):
             with plus.accounts.primary:
                 plus.cloud.send_message_cb(
                     bacommon.cloud.StoreQueryMessage(),
-                    on_response=bui.WeakCall(self._on_store_query_response),
+                    on_response=bui.WeakCallPartial(
+                        self._on_store_query_response
+                    ),
                 )
 
         # Can't do much until we get a store state.
@@ -588,6 +632,7 @@ class GetTokensWindow(bui.MainWindow):
         )
         tinfobtn = bui.buttonwidget(
             parent=self._root_widget,
+            id=f'{self.main_window_id_prefix}|learnmore',
             autoselect=True,
             label=bui.Lstr(resource='learnMoreText'),
             text_scale=0.7,
@@ -599,7 +644,7 @@ class GetTokensWindow(bui.MainWindow):
             scale=0.8,
             color=(0.4, 0.25, 0.5),
             textcolor=self._textcolor,
-            on_activate_call=partial(
+            on_activate_call=bui.WeakCallStrict(
                 self._on_learn_more_press, response.token_info_url
             ),
         )
@@ -626,6 +671,7 @@ class GetTokensWindow(bui.MainWindow):
             btn = bui.buttonwidget(
                 autoselect=True,
                 label='',
+                id=f'{self.main_window_id_prefix}|button{i}',
                 color=buttondef.color,
                 transition_delay=tdelay,
                 up_widget=tinfobtn,
@@ -633,7 +679,7 @@ class GetTokensWindow(bui.MainWindow):
                 size=(buttondef.width, 275),
                 position=(x, -10 + yoffs),
                 button_type='square',
-                on_activate_call=partial(
+                on_activate_call=bui.WeakCallStrict(
                     self._purchase_press, buttondef.itemid
                 ),
             )
@@ -733,6 +779,14 @@ class GetTokensWindow(bui.MainWindow):
                 text=bui.Lstr(resource='removeInGameAdsTokenPurchaseText'),
             )
 
+        # Most of our UI won't exist until this point so we need to
+        # explicitly restore state for selection restore to work.
+        #
+        # Note to self: perhaps we should *not* do this if significant
+        # time has passed since the window was made or if input commands
+        # have happened.
+        self.main_window_restore_shared_state()
+
     def _purchase_press(self, itemid: str) -> None:
         plus = bui.app.plus
 
@@ -761,7 +815,7 @@ class GetTokensWindow(bui.MainWindow):
         bui.open_url(url)
 
 
-def show_get_tokens_prompt() -> None:
+def show_get_tokens_prompt(origin_widget: bui.Widget | None = None) -> None:
     """Show a 'not enough tokens' prompt with an option to purchase more.
 
     Note that the purchase option may not always be available
@@ -771,14 +825,19 @@ def show_get_tokens_prompt() -> None:
 
     assert bui.app.classic is not None
 
+    get_tokens_button = bui.get_special_widget('get_tokens_button')
+
     # Currently always allowing token purchases.
     if bool(True):
         ConfirmWindow(
             bui.Lstr(resource='tokens.notEnoughTokensText'),
-            show_get_tokens_window,
+            bui.CallStrict(
+                show_get_tokens_window, origin_widget=get_tokens_button
+            ),
             ok_text=bui.Lstr(resource='tokens.getTokensText'),
             width=460,
             height=130,
+            origin_widget=origin_widget,
         )
     else:
         ConfirmWindow(
@@ -786,31 +845,45 @@ def show_get_tokens_prompt() -> None:
             cancel_button=False,
             width=460,
             height=130,
+            origin_widget=origin_widget,
         )
 
 
-def show_get_tokens_window(origin_widget: bui.Widget | None = None) -> None:
+def show_get_tokens_window(
+    origin_widget: bui.Widget | None = None, toggle: bool = False
+) -> None:
     """Transition to the get-tokens main-window from anywhere."""
 
-    # NOTE TO USERS: The code below is not the proper way to do things;
+    # NOTE TO USERS: The code below is not the standard way to do things;
     # whenever possible one should use a MainWindow's
-    # main_window_replace() or main_window_back() methods. We just need
-    # to do things a bit more manually in this particular case.
+    # main_window_replace() or main_window_back() methods or
+    # bauiv1.auxiliary_window_activate(). We just need to do things a
+    # bit more manually in this particular case.
+
+    # Basically we want to push our window on to the stack from
+    # anywhere so we can go back to where we were once done even if it
+    # was an auxiliary window.
 
     prev_main_window = bui.app.ui_v1.get_main_window()
 
     # Special-case: If it seems we're already in the window, do nothing.
     if isinstance(prev_main_window, GetTokensWindow):
+        if toggle:
+            prev_main_window.main_window_back()
         return
 
-    # Set our new main window.
-    bui.app.ui_v1.set_main_window(
-        GetTokensWindow(origin_widget=origin_widget),
-        from_window=False,
-        is_auxiliary=True,
+    ui = bui.app.ui_v1
+    # Set our new main window. Note that we pass auxiliary_style=False
+    # so that we get a back button instead of a close button.
+    ui.set_main_window(
+        GetTokensWindow(origin_widget=origin_widget, auxiliary_style=False),
+        from_window=False,  # Don't check where we're coming from.
+        back_state=ui.save_current_main_window_state(),
+        is_auxiliary=False,
         suppress_warning=True,
+        extra_type_id='',
     )
 
     # Transition out any previous main window.
     if prev_main_window is not None:
-        prev_main_window.main_window_close()
+        prev_main_window.main_window_close(transition='out_left')

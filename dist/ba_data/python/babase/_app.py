@@ -2,11 +2,13 @@
 #
 # pylint: disable=too-many-lines
 """Functionality related to the high level state of the app."""
+
 from __future__ import annotations
 
+import io
 import os
 import time
-import logging
+import asyncio
 from enum import Enum
 from functools import partial
 from typing import TYPE_CHECKING, override
@@ -16,24 +18,24 @@ from efro.threadpool import ThreadPoolExecutorEx
 from efro.util import strip_exception_tracebacks
 
 import _babase
-from babase._discord import DiscordSubsystem
 from babase._language import LanguageSubsystem
 from babase._locale import LocaleSubsystem
 from babase._plugin import PluginSubsystem
 from babase._meta import MetadataSubsystem
 from babase._net import NetworkSubsystem
 from babase._workspace import WorkspaceSubsystem
+from babase._assetsubsystem import AssetSubsystem
 from babase._appcomponent import AppComponentSubsystem
 from babase._appmodeselector import AppModeSelector
 from babase._appintent import AppIntentDefault, AppIntentExec
 from babase._stringedit import StringEditSubsystem
 from babase._devconsole import DevConsoleSubsystem
+from babase._analytics import AnalyticsSubsystem
 from babase._appconfig import AppConfig
-from babase._logging import lifecyclelog, applog
+from babase._logging import lifecyclelog, balog, applog
 from babase._gc import GarbageCollectionSubsystem
 
 if TYPE_CHECKING:
-    import asyncio
     from typing import Any, Callable, Coroutine, Generator, Awaitable
     from concurrent.futures import Future
 
@@ -76,6 +78,20 @@ class App:
     #: so we need to keep it under that. Staying above 10 should allow
     #: 10 second network timeouts to happen though.
     SHUTDOWN_TASK_TIMEOUT_SECONDS = 12
+
+    #: Hard deadline for shutdown. The C++ side arms a suicide timer at
+    #: this many seconds from the start of shutdown; if shutdown hasn't
+    #: completed by then we're considered officially hung. On platforms
+    #: where the Python faulthandler can write to fd 2, a traceback dump
+    #: is also armed to fire at this same deadline (so we get a dump of
+    #: every thread before we die) and the suicide timer is extended by
+    #: :attr:`SHUTDOWN_FAULTHANDLER_RUNWAY_SECONDS` to give the dump
+    #: time to finish writing.
+    SHUTDOWN_SUICIDE_TIMEOUT_SECONDS: float = 15.0
+
+    #: Extra time added to the suicide timer on faulthandler-capable
+    #: platforms so the dump has room to complete before we die.
+    SHUTDOWN_FAULTHANDLER_RUNWAY_SECONDS: float = 2.0
 
     def __init__(self) -> None:
         """(internal)
@@ -132,13 +148,11 @@ class App:
             PluginSubsystem()
         )
 
-        #: Subsystem for discord functionality
-        self.discord: DiscordSubsystem = self.register_subsystem(
-            DiscordSubsystem()
-        )
-
         #: Subsystem for wrangling metadata.
         self.meta: MetadataSubsystem = MetadataSubsystem()
+
+        #: Subsystem for acquiring + tracking downloadable asset packages.
+        self.assets: AssetSubsystem = self.register_subsystem(AssetSubsystem())
 
         #: Subsystem for wrangling workspaces.
         self.workspaces: WorkspaceSubsystem = WorkspaceSubsystem()
@@ -152,6 +166,9 @@ class App:
         #: Subsystem for wrangling the dev-console UI.
         self.devconsole: DevConsoleSubsystem = DevConsoleSubsystem()
 
+        #: Subsystem for wrangling analytics.
+        self.analytics: AnalyticsSubsystem = AnalyticsSubsystem()
+
         #: Incremented each time the app leaves the
         #: :attr:`~babase.AppState.SUSPENDED` state. This can be a simple
         #: way to determine if network data should be refreshed/etc.
@@ -164,6 +181,7 @@ class App:
         self._native_suspended = False
         self._native_shutdown_called = False
         self._native_shutdown_complete_called = False
+        self._fault_handler_armed = False
         self._initial_sign_in_completed = False
         self._called_on_initing = False
         self._called_on_loading = False
@@ -171,7 +189,6 @@ class App:
         self._pending_apply_app_config = False
         self._asyncio_loop: asyncio.AbstractEventLoop | None = None
         self._asyncio_tasks: set[asyncio.Task] = set()
-        self._asyncio_timer: babase.AppTimer | None = None
         self._pending_intent: AppIntent | None = None
         self._intent: AppIntent | None = None
         self._mode_selector: babase.AppModeSelector | None = None
@@ -202,10 +219,16 @@ class App:
         return _babase.app_is_active()
 
     @property
-    def mode(self) -> AppMode | None:
-        """The app's current mode."""
+    def mode(self) -> AppMode:
+        """The app's current mode.
+
+        Raises :class:`ValueError` if no mode is set.
+        """
         assert _babase.in_logic_thread()
-        return self._mode
+        mode = self._mode
+        if mode is None:
+            raise ValueError('No app-mode set.')
+        return mode
 
     @property
     def asyncio_loop(self) -> asyncio.AbstractEventLoop:
@@ -223,15 +246,12 @@ class App:
         errors and garbage-collected tasks disappearing before their
         work is done.
 
-        Note that, at this time, the asyncio loop is encapsulated and
-        explicitly stepped by the engine's logic thread loop and thus
-        things like :meth:`asyncio.get_running_loop()` will
-        unintuitively *not* return this loop from most places in the
-        logic thread; only from within a task explicitly created in this
-        loop. Hopefully this situation will be improved in the future
-        with a unified event loop.
+        This loop is integrated directly into the logic thread's event
+        loop, so :meth:`asyncio.get_running_loop()` returns it from
+        anywhere on the logic thread, and work posted from other threads
+        (such as ``run_in_executor`` completions) wakes the logic thread
+        immediately.
         """
-        assert _babase.in_logic_thread()
         assert self._asyncio_loop is not None
         return self._asyncio_loop
 
@@ -275,12 +295,13 @@ class App:
     def mode_selector(self, selector: babase.AppModeSelector) -> None:
         self._mode_selector = selector
 
-    def _on_task_done(self, task: asyncio.Task) -> None:
+    def _on_task_done(self, task: Any) -> None:
         # Report any errors that occurred.
+        assert isinstance(task, asyncio.Task)
         try:
             exc = task.exception()
             if exc is not None:
-                logging.error(
+                balog.error(
                     "Error in async task '%s'.", task.get_name(), exc_info=exc
                 )
                 # We're done with the exception, so let's rip out its
@@ -289,7 +310,7 @@ class App:
                 strip_exception_tracebacks(exc)
 
         except Exception:
-            logging.exception('Error reporting async task error.')
+            balog.exception('Error reporting async task error.')
 
         self._asyncio_tasks.remove(task)
 
@@ -360,7 +381,7 @@ class App:
         except ImportError:
             return None
         except Exception:
-            logging.exception('Error importing baclassic.')
+            balog.exception('Error importing baclassic.')
             return None
 
     @property
@@ -380,7 +401,7 @@ class App:
         except ImportError:
             return None
         except Exception:
-            logging.exception('Error importing baplus.')
+            balog.exception('Error importing baplus.')
             return None
 
     @property
@@ -449,35 +470,174 @@ class App:
             )
         self._shutdown_tasks.append(coro)
 
+    def shutdown_fault_handler_arm(self) -> float:
+        """Arm a Python traceback dump for shutdown diagnostics.
+
+        Called from the C++ shutdown path, colocated with the
+        suicide-timer arm. Returns the number of seconds C++ should use
+        for its suicide timer: :attr:`SHUTDOWN_SUICIDE_TIMEOUT_SECONDS`
+        if the faulthandler dump can't be armed (e.g. ``fd 2`` is not
+        available), or that value plus
+        :attr:`SHUTDOWN_FAULTHANDLER_RUNWAY_SECONDS` if it was armed
+        successfully — the extra time gives the dump room to finish
+        writing before the process is killed.
+
+        Pairs with :meth:`shutdown_fault_handler_disarm`, which is
+        called at the end of ``_pre_interpreter_shutdown``.
+        """
+        import faulthandler
+
+        # Output goes directly to fd 2 rather than sys.stderr because
+        # sys.stderr is replaced by a log-forwarding wrapper (no
+        # fileno()) in headless builds; fd 2 is the raw stderr, which
+        # for headless under basn lands in the task output stream. Only
+        # arm if fd 2 is actually open; on environments without a
+        # stderr attached (Windows GUI with no console, services run
+        # with 2>/dev/null, some embedded setups) the dump would
+        # silently write to a closed fd, so skip the diagnostic in
+        # those cases and let the C++ suicide timer handle the exit on
+        # its own.
+        try:
+            os.fstat(2)
+        except OSError:
+            return self.SHUTDOWN_SUICIDE_TIMEOUT_SECONDS
+        # Flip the armed flag before arming so that if something goes
+        # wrong mid-arm a subsequent disarm still cancels the timer.
+        self._fault_handler_armed = True
+        try:
+            faulthandler.dump_traceback_later(
+                self.SHUTDOWN_SUICIDE_TIMEOUT_SECONDS, exit=False, file=2
+            )
+        except Exception:
+            self._fault_handler_armed = False
+            return self.SHUTDOWN_SUICIDE_TIMEOUT_SECONDS
+        # Announce the arm so later diagnostics can tell "shutdown
+        # legitimately took ~15s" from "shutdown got stuck" — if the
+        # disarm INFO doesn't appear before the faulthandler dump, the
+        # hang is somewhere between here and ``_pre_interpreter_shutdown``
+        # finishing.
+        lifecyclelog.info(
+            'suicide watchdog armed; dump in %.0fs',
+            self.SHUTDOWN_SUICIDE_TIMEOUT_SECONDS,
+        )
+        return (
+            self.SHUTDOWN_SUICIDE_TIMEOUT_SECONDS
+            + self.SHUTDOWN_FAULTHANDLER_RUNWAY_SECONDS
+        )
+
+    def shutdown_fault_handler_disarm(self) -> None:
+        """Cancel the shutdown faulthandler dump armed earlier.
+
+        Safe to call even if :meth:`shutdown_fault_handler_arm` was
+        never called or didn't arm anything — in that case it's a
+        no-op.
+        """
+        if not self._fault_handler_armed:
+            return
+        self._fault_handler_armed = False
+        import faulthandler
+
+        faulthandler.cancel_dump_traceback_later()
+
     def _pre_interpreter_shutdown(self) -> None:
         """Called just before interpreter is finalized."""
         import gc
         from babase._env import interpreter_shutdown_sanity_checks
 
-        # Spin down connection pools or whatever else used for
-        # networking.
-        self.net.pre_interpreter_shutdown()
+        # Bracket with timing logs so a slow tail-end shutdown is
+        # distinguishable from a true hang: if the faulthandler dump
+        # beats the "end" line, we're stuck inside this function.
+        start_time = time.monotonic()
+        lifecyclelog.info('pre-interpreter-shutdown begin')
+        try:
+            # Spin down connection pools or whatever else used for
+            # networking.
+            self.net.pre_interpreter_shutdown()
 
-        # Run a last round of cyclic garbage collection - mostly so
-        # we keep ourselves aware of reference cycles that need cleaning
-        # up.
-        self.gc.collect(force=True)
+            # Run a last round of cyclic garbage collection - mostly so
+            # we keep ourselves aware of reference cycles that need
+            # cleaning up. This has been observed eating the entire
+            # 15s watchdog budget in the wild, so time it explicitly.
+            #
+            # When running under basn, add two extra diagnostics around
+            # this collect:
+            #
+            #   1. ``gc.DEBUG_STATS`` for the duration of this single
+            #      collect. The CPython GC prints per-generation
+            #      progress to stderr ("gc: collecting generation N..."
+            #      / "gc: done, M unreachable, ..."), so a hang in
+            #      gen-2 leaves us with the gen-0/gen-1 trace and a
+            #      missing gen-2 "done" line — pinpoint signal for the
+            #      stuck phase. Output is minimal in a healthy run.
+            #
+            #   2. ``len(gc.get_objects())`` snapshot just before the
+            #      collect. Tells us how many tracked objects the
+            #      collect was about to walk — if a hang fires later,
+            #      a large number here is itself signal that the heap
+            #      is bigger than expected.
+            #
+            # Order matters: enable DEBUG_STATS *before* the snapshot
+            # so that even if anything between here and the collect
+            # were to stall, the gen-N progress lines still fire when
+            # the collect eventually runs. An earlier version of this
+            # diagnostic also built a top-10 type histogram via
+            # ``Counter`` — we observed that itself eat the entire
+            # post-shutdown-begin tail-end on a real prod node (heap
+            # large enough that walking it took >4s), so the histogram
+            # is dropped pending a cheaper way to capture it. The
+            # count alone tells us "the heap is huge" which is the
+            # main thing we care about for now.
+            #
+            # Both gated to ``BASNLOG`` so interactive client runs
+            # (including dev sessions) stay quiet and per-run cost is
+            # zero outside basn-hosted games.
+            basnlog = os.environ.get('BASNLOG') == '1'
+            if basnlog:
+                prev_debug = gc.get_debug()
+                gc.set_debug(prev_debug | gc.DEBUG_STATS)
+                lifecyclelog.info(
+                    'pre-interpreter-shutdown pre-final-gc:'
+                    ' %d tracked objects.',
+                    len(gc.get_objects()),
+                )
 
-        # Turn off any garbage-collector debugging or we'll get a huge
-        # dump of stuff as Python is tearing itself down, which we don't
-        # care about.
-        if gc.get_debug() != 0:
-            gc.set_debug(0)
-            # Clear garbage or else we get warnings about uncollectable
-            # objects if we've been running with gc.DEBUG_SAVEALL.
-            gc.garbage.clear()
+            gc_start = time.monotonic()
+            try:
+                self.gc.collect(force=True)
+            finally:
+                if basnlog:
+                    gc.set_debug(prev_debug)
+            lifecyclelog.info(
+                'pre-interpreter-shutdown final gc.collect took %.2fs',
+                time.monotonic() - gc_start,
+            )
 
-        # Finish up anything the threadpool is working on and kill its
-        # threads.
-        self.threadpool.shutdown()
+            # Turn off any garbage-collector debugging or we'll get a
+            # huge dump of stuff as Python is tearing itself down, which
+            # we don't care about.
+            if gc.get_debug() != 0:
+                gc.set_debug(0)
+                # Clear garbage or else we get warnings about
+                # uncollectable objects if we've been running with
+                # gc.DEBUG_SAVEALL.
+                gc.garbage.clear()
 
-        # General sanity checks for lingering threads/etc.
-        interpreter_shutdown_sanity_checks()
+            # Finish up anything the threadpool is working on and kill
+            # its threads.
+            self.threadpool.shutdown()
+
+            # General sanity checks for lingering threads/etc.
+            interpreter_shutdown_sanity_checks()
+        finally:
+            lifecyclelog.info(
+                'pre-interpreter-shutdown end (took %.2fs)',
+                time.monotonic() - start_time,
+            )
+            # Cancel the shutdown faulthandler dump armed by the C++
+            # side alongside the suicide timer. If anything above
+            # raises, we still want to cancel so a slow interpreter
+            # finalize doesn't get a spurious dump.
+            self.shutdown_fault_handler_disarm()
 
     def run(self) -> None:
         """Run the app to completion.
@@ -535,6 +695,7 @@ class App:
         assert _babase.in_logic_thread()
         assert not self._native_bootstrapping_completed
         self._native_bootstrapping_completed = True
+
         self._update_state()
 
     def on_native_suspend(self) -> None:
@@ -617,6 +778,8 @@ class App:
         assert _babase.in_logic_thread()
         assert not self._initial_sign_in_completed
 
+        lifecyclelog.info('initial-sign-in complete')
+
         # Tell meta it can start scanning extra stuff that just showed
         # up (namely account workspaces).
         self.meta.start_extra_scan()
@@ -646,7 +809,7 @@ class App:
             try:
                 subsystem.on_ui_scale_change()
             except Exception:
-                logging.exception(
+                balog.exception(
                     'Error in on_ui_scale_change() for subsystem %s.', subsystem
                 )
 
@@ -663,7 +826,7 @@ class App:
             try:
                 subsystem.on_screen_size_change()
             except Exception:
-                logging.exception(
+                balog.exception(
                     'Error in on_screen_size_change() for subsystem %s.',
                     subsystem,
                 )
@@ -721,7 +884,7 @@ class App:
                 from_other_thread=True,
             )
         except Exception:
-            logging.exception('Error setting app intent to %s.', intent)
+            balog.exception('Error setting app intent to %s.', intent)
             _babase.pushcall(
                 partial(self._display_set_intent_error, intent),
                 from_other_thread=True,
@@ -745,7 +908,7 @@ class App:
                 try:
                     self._mode.on_deactivate()
                 except Exception:
-                    logging.exception(
+                    balog.exception(
                         'Error deactivating app-mode %s.', self._mode
                     )
 
@@ -756,7 +919,7 @@ class App:
                 try:
                     subsystem.reset()
                 except Exception:
-                    logging.exception(
+                    balog.exception(
                         'Error in reset() for subsystem %s.', subsystem
                     )
 
@@ -765,7 +928,7 @@ class App:
                 mode.on_activate()
             except Exception:
                 # Hmm; what should we do in this case?...
-                logging.exception('Error activating app-mode %s.', mode)
+                balog.exception('Error activating app-mode %s.', mode)
 
             # Let the world know when we first have an app-mode; certain
             # app stuff such as input processing can proceed at that
@@ -776,9 +939,56 @@ class App:
         try:
             mode.handle_intent(intent)
         except Exception:
-            logging.exception(
+            balog.exception(
                 'Error handling intent %s in app-mode %s.', intent, mode
             )
+
+    def _enter_construct_mode(self, intent: AppIntent) -> None:
+        """Enter construct-mode directly as the boot-time bring-up gate.
+
+        Construct-mode is not an intent handler and is never returned by
+        the mode-selector, so we activate it here by hand — mirroring the
+        mode-swap half of :meth:`_apply_intent`, minus intent handling. It
+        readies the required asset-packages and then releases ``intent`` to
+        the normal app-mode (via :meth:`set_intent`) once bring-up
+        completes.
+        """
+        # pylint: disable=cyclic-import
+        from babase._constructmode import ConstructAppMode
+
+        assert _babase.in_logic_thread()
+
+        # If a mode is somehow already active (e.g. a plugin drove an
+        # intent alongside an exec command), don't disrupt it; just
+        # dispatch normally and skip the construct-mode gate.
+        if self._mode is not None:
+            self.set_intent(intent)
+            return
+
+        mode = ConstructAppMode(deferred_intent=intent)
+
+        # Reset all subsystems, matching what _apply_intent does when a
+        # mode becomes active. (Subsystem registration is closed by now.)
+        assert self._subsystem_registration_ended
+        for subsystem in self._subsystems:
+            try:
+                subsystem.reset()
+            except Exception:
+                balog.exception('Error in reset() for subsystem %s.', subsystem)
+
+        self._mode = mode
+        try:
+            mode.on_activate()
+        except Exception:
+            balog.exception('Error activating construct-mode %s.', mode)
+
+        # First app-mode is now set; start the consoles / enable input.
+        # (Under the server manager, the stdin reader itself holds off on
+        # processing commands until a real intent-handling app-mode is
+        # active — construct-mode's C++ app_mode stays EmptyAppMode — so
+        # the wrapper's commands wait safely; see StdioConsole. Interactive
+        # sessions can use stdin/dev-console during construct-mode.)
+        _babase.on_initial_app_mode_set()
 
     def _display_set_intent_error(self, intent: AppIntent) -> None:
         """Show the *user* something went wrong setting an intent."""
@@ -842,6 +1052,7 @@ class App:
         itself to really 'run'.
         """
         assert _babase.in_logic_thread()
+        lifecyclelog.info('on-loading begin')
 
         # Get meta-system scanning built-in stuff in the bg.
         self.meta.start_scan(scan_complete_cb=self._on_meta_scan_complete)
@@ -853,7 +1064,7 @@ class App:
             try:
                 subsystem.on_app_loading()
             except Exception:
-                logging.exception(
+                balog.exception(
                     'Error in on_app_loading() for subsystem %s.', subsystem
                 )
 
@@ -863,9 +1074,12 @@ class App:
         if self.plus is None:
             _babase.pushcall(self.on_initial_sign_in_complete)
 
+        lifecyclelog.info('on-loading end')
+
     def _on_meta_scan_complete(self) -> None:
         """Called when meta-scan is done doing its thing."""
         assert _babase.in_logic_thread()
+        lifecyclelog.info('meta-scan complete')
 
         # Now that we know what's out there, build our final plugin set.
         self.plugins.on_meta_scan_complete()
@@ -881,6 +1095,7 @@ class App:
         and we can actually get started doing whatever we're gonna do.
         """
         assert _babase.in_logic_thread()
+        lifecyclelog.info('on-running begin')
 
         # Let our native layer know.
         _babase.on_app_running()
@@ -902,22 +1117,33 @@ class App:
             try:
                 subsystem.on_app_running()
             except Exception:
-                logging.exception(
+                balog.exception(
                     'Error in on_app_running() for subsystem %s.', subsystem
                 )
 
         # Cut off new subsystem additions at this point.
         self._subsystem_registration_ended = True
 
-        # If 'exec' code was provided to the app, always kick that off
-        # here as an intent.
+        # Determine the launch intent: an explicit 'exec' command if one
+        # was provided, else our default thing — but only if a plugin
+        # hasn't already driven an intent.
         exec_cmd = _babase.exec_arg()
+        initial_intent: AppIntent | None
         if exec_cmd is not None:
-            self.set_intent(AppIntentExec(exec_cmd))
+            initial_intent = AppIntentExec(exec_cmd)
         elif self._pending_intent is None:
-            # Otherwise tell the app to do its default thing *only* if a
-            # plugin hasn't already told it to do something.
-            self.set_intent(AppIntentDefault())
+            initial_intent = AppIntentDefault()
+        else:
+            initial_intent = None
+
+        # Bring required assets up in construct-mode first; it releases
+        # this intent to the app-mode that actually handles it once
+        # bring-up completes. (If a plugin already drove an intent,
+        # initial_intent is None and we leave that flow untouched.)
+        if initial_intent is not None:
+            self._enter_construct_mode(initial_intent)
+
+        lifecyclelog.info('on-running end')
 
     def _apply_app_config(self) -> None:
         assert _babase.in_logic_thread()
@@ -938,7 +1164,7 @@ class App:
             try:
                 subsystem.apply_app_config()
             except Exception:
-                logging.exception(
+                balog.exception(
                     'Error in apply_app_config() for subsystem %s.',
                     subsystem,
                 )
@@ -1014,7 +1240,7 @@ class App:
             else:
                 # Only logical possibility left is NOT_STARTED, in which
                 # case we should not be getting called.
-                logging.warning(
+                balog.warning(
                     'App._update_state called while in %s state;'
                     ' should not happen.',
                     self.state.value,
@@ -1022,7 +1248,6 @@ class App:
                 )
 
     async def _shutdown(self) -> None:
-        import asyncio
 
         _babase.lock_all_input()
         try:
@@ -1035,7 +1260,7 @@ class App:
                         self._run_shutdown_task(task_coro)
                     )
         except* Exception:
-            logging.exception('Unexpected error(s) in shutdown.')
+            balog.exception('Unexpected error(s) in shutdown.')
 
         # Note: ideally we should run this directly here, but currently
         # it does some legacy stuff which blocks, so running it here
@@ -1048,13 +1273,47 @@ class App:
         self, coro: Coroutine[None, None, None]
     ) -> None:
         """Run a shutdown task; report errors and abort if taking too long."""
-        import asyncio
 
         task = asyncio.create_task(coro)
-        try:
-            await asyncio.wait_for(task, self.SHUTDOWN_TASK_TIMEOUT_SECONDS)
-        except Exception:
-            logging.exception('Error in shutdown task (%s).', coro)
+
+        # Use asyncio.wait (not wait_for) so that if we do time out we
+        # still have an uncancelled Task we can call print_stack() on.
+        # wait_for auto-cancels and awaits the task past the timeout,
+        # which leaves print_stack returning 'No stack for <cancelled
+        # Task ...>' by the time we'd try to use it.
+        done, _pending = await asyncio.wait(
+            [task], timeout=self.SHUTDOWN_TASK_TIMEOUT_SECONDS
+        )
+        if task not in done:
+            # Task hung past our timeout. Snapshot its current
+            # suspended stack so the log names a culprit even when
+            # the faulthandler dump can't reach this phase (the
+            # usual case: shutdown completes normally after the
+            # cancel and _pre_interpreter_shutdown disarms the dump
+            # before the 15s deadline).
+            stack_buf = io.StringIO()
+            try:
+                task.print_stack(file=stack_buf)
+            except Exception:  # pylint: disable=broad-exception-caught
+                stack_buf.write('(failed to capture task stack)')
+            stack_text = stack_buf.getvalue().rstrip() or '(empty)'
+            balog.error(
+                'Timed out waiting for shutdown task %s.'
+                ' Current task stack:\n%s',
+                coro,
+                stack_text,
+            )
+            task.cancel()
+            # Let the cancellation propagate briefly so the coroutine
+            # unwinds cleanly; don't block shutdown indefinitely on a
+            # task that may also be ignoring cancel.
+            try:
+                await asyncio.wait([task], timeout=1.0)
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
+        elif (exc := task.exception()) is not None:
+            # Go with full ugly stack trace for anything unexpected.
+            balog.error('Error in shutdown task %s.', coro, exc_info=exc)
 
     def _on_suspend(self) -> None:
         """Called when the app goes to a suspended state."""
@@ -1065,7 +1324,7 @@ class App:
             try:
                 subsystem.on_app_suspend()
             except Exception:
-                logging.exception(
+                balog.exception(
                     'Error in on_app_suspend() for subsystem %s.', subsystem
                 )
 
@@ -1079,7 +1338,7 @@ class App:
             try:
                 subsystem.on_app_unsuspend()
             except Exception:
-                logging.exception(
+                balog.exception(
                     'Error in on_app_unsuspend() for subsystem %s.', subsystem
                 )
 
@@ -1093,7 +1352,7 @@ class App:
             try:
                 subsystem.on_app_shutdown()
             except Exception:
-                logging.exception(
+                balog.exception(
                     'Error in on_app_shutdown() for subsystem %s.', subsystem
                 )
 
@@ -1112,7 +1371,7 @@ class App:
             try:
                 self._mode.on_deactivate()
             except Exception:
-                logging.exception(
+                balog.exception(
                     'Error deactivating app-mode %s at app shutdown.',
                     self._mode,
                 )
@@ -1124,13 +1383,12 @@ class App:
             try:
                 subsystem.on_app_shutdown_complete()
             except Exception:
-                logging.exception(
+                balog.exception(
                     'Error in on_app_shutdown_complete() for subsystem %s.',
                     subsystem,
                 )
 
     async def _wait_for_shutdown_suppressions(self) -> None:
-        import asyncio
 
         # Spin and wait for anything blocking shutdown to complete.
         starttime = _babase.apptime()
@@ -1140,14 +1398,13 @@ class App:
         lifecyclelog.info('shutdown-suppress-wait end')
         duration = _babase.apptime() - starttime
         if duration > 1.0:
-            logging.warning(
+            balog.warning(
                 'Shutdown-suppressions lasted longer than ideal '
                 '(%.2f seconds).',
                 duration,
             )
 
     async def _fade_and_shutdown_graphics(self) -> None:
-        import asyncio
 
         # Kick off a short fade and give it time to complete.
         lifecyclelog.info('fade-and-shutdown-graphics begin')
@@ -1183,7 +1440,6 @@ class App:
         lifecyclelog.info('fade-and-shutdown-graphics end')
 
     async def _fade_and_shutdown_audio(self) -> None:
-        import asyncio
 
         # Tell the audio system to go down and give it a bit of
         # time to do so gracefully.
@@ -1193,6 +1449,40 @@ class App:
         while not _babase.audio_shutdown_is_complete():
             await asyncio.sleep(0.01)
         lifecyclelog.info('fade-and-shutdown-audio end')
+
+    def get_convenience_imports(self) -> dict[str, str | None]:
+        """Return active convenience imports.
+
+        This consists of a dict mapping module names to optional
+        aliases. These are the modules that will be auto-imported into
+        the REPL environment.
+
+        This can be set in the config as 'Convenience Imports'. If it is
+        not present there, defaults for the app are given.
+        """
+        cfg = self.config.get('Convenience Imports')
+        if cfg is not None:
+            if isinstance(cfg, dict) and all(
+                isinstance(k, str) and isinstance(v, str | None)
+                for k, v in cfg.items()
+            ):
+                return cfg
+            balog.warning(
+                'Ignoring invalid \'Convenience Imports\' app config value;'
+                ' expected a dict of str -> str | None.'
+            )
+
+        # __GET_DEFAULT_CONVENIENCE_IMPORTS_BEGIN__
+        # This section generated by batools.appmodule; do not edit.
+
+        return {
+            'bascenev1': 'bs',
+            'bascenev1lib': 'bsl',
+            'bauiv1': 'bui',
+            'bauiv1lib': 'buil',
+        }
+
+        # __GET_DEFAULT_CONVENIENCE_IMPORTS_END__
 
     def _thread_pool_thread_init(self) -> None:
         # Help keep things clear in profiling tools/etc.

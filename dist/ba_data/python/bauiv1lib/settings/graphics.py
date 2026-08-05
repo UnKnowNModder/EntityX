@@ -22,9 +22,9 @@ class GraphicsSettingsWindow(bui.MainWindow):
         transition: str | None = 'in_right',
         origin_widget: bui.Widget | None = None,
     ):
+        # pylint: disable=too-many-statements
         # pylint: disable=too-many-locals
         # pylint: disable=too-many-branches
-        # pylint: disable=too-many-statements
 
         self._r = 'graphicsSettingsWindow'
         app = bui.app
@@ -66,9 +66,9 @@ class GraphicsSettingsWindow(bui.MainWindow):
         # screen shape at small ui scale.
         screensize = bui.get_virtual_screen_size()
         scale = (
-            1.9
+            1.6
             if uiscale is bui.UIScale.SMALL
-            else 1.4 if uiscale is bui.UIScale.MEDIUM else 1.0
+            else 1.3 if uiscale is bui.UIScale.MEDIUM else 1.0
         )
         popup_menu_scale = scale * 1.2
 
@@ -79,16 +79,14 @@ class GraphicsSettingsWindow(bui.MainWindow):
 
         # To get top/left coords, go to the center of our window and
         # offset by half the width/height of our target area.
-        yoffs = 0.5 * height + 0.5 * target_height + 30.0
+        yoffs = 0.5 * height + 0.5 * target_height + 35.0
 
         super().__init__(
             root_widget=bui.containerwidget(
                 size=(width, height),
                 scale=scale,
                 toolbar_visibility=(
-                    'menu_minimal'
-                    if uiscale is bui.UIScale.SMALL
-                    else 'menu_full'
+                    'menu_full' if bui.in_main_menu() else 'menu_minimal'
                 ),
             ),
             transition=transition,
@@ -102,6 +100,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
         h_offs = width * 0.5 - 220
 
         if uiscale is bui.UIScale.SMALL:
+            v += 30.0
             bui.containerwidget(
                 edit=self._root_widget, on_cancel_call=self.main_window_back
             )
@@ -109,6 +108,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
         else:
             back_button = bui.buttonwidget(
                 parent=self._root_widget,
+                id=f'{self.main_window_id_prefix}|back',
                 position=(35, yoffs - 50),
                 size=(60, 60),
                 scale=0.8,
@@ -153,6 +153,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
                 )
             self._fullscreen_checkbox = bui.checkboxwidget(
                 parent=self._root_widget,
+                id=f'{self.main_window_id_prefix}|fullscreen',
                 position=(h_offs + 100, v),
                 value=bui.fullscreen_control_get(),
                 on_value_change_call=bui.fullscreen_control_set,
@@ -186,6 +187,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
         )
         PopupMenu(
             parent=self._root_widget,
+            button_id=f'{self.main_window_id_prefix}|graphicsquality',
             position=(h_offs + 60, v - 50),
             width=150,
             scale=popup_menu_scale,
@@ -220,6 +222,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
         )
         textures_popup = PopupMenu(
             parent=self._root_widget,
+            button_id=f'{self.main_window_id_prefix}|texturequality',
             position=(h_offs + 230, v - 50),
             width=150,
             scale=popup_menu_scale,
@@ -254,8 +257,8 @@ class GraphicsSettingsWindow(bui.MainWindow):
                 v_align='center',
             )
 
-            # On standard android we have 'Auto', 'Native', and a few
-            # HD standards.
+            # On standard android we have 'Auto', 'Native', and a few HD
+            # standards.
             if app.classic.platform == 'android':
                 # on cardboard/daydream android we have a few
                 # render-target-scale options
@@ -266,6 +269,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
                     )
                     resolution_popup = PopupMenu(
                         parent=self._root_widget,
+                        button_id=f'{self.main_window_id_prefix}|resolution',
                         position=(h_offs + 60, v - 50),
                         width=120,
                         scale=popup_menu_scale,
@@ -291,6 +295,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
                     )
                     resolution_popup = PopupMenu(
                         parent=self._root_widget,
+                        button_id=f'{self.main_window_id_prefix}|resolution',
                         position=(h_offs + 60, v - 50),
                         width=120,
                         scale=popup_menu_scale,
@@ -310,6 +315,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
                     )
                     resolution_popup = PopupMenu(
                         parent=self._root_widget,
+                        button_id=f'{self.main_window_id_prefix}|resolution',
                         position=(h_offs + 60, v - 50),
                         width=120,
                         scale=popup_menu_scale,
@@ -343,6 +349,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
             )
             vsync_popup = PopupMenu(
                 parent=self._root_widget,
+                button_id=f'{self.main_window_id_prefix}|vsync',
                 position=(h_offs + 230, v - 50),
                 width=150,
                 scale=popup_menu_scale,
@@ -387,6 +394,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
             self._last_max_fps_str = max_fps_str
             self._max_fps_text = bui.textwidget(
                 parent=self._root_widget,
+                id=f'{self.main_window_id_prefix}|maxfps',
                 position=(h_offs + 170, v - 5),
                 size=(105, 30),
                 text=max_fps_str,
@@ -410,6 +418,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
 
         fpsc = ConfigCheckBox(
             parent=self._root_widget,
+            check_box_id=f'{self.main_window_id_prefix}|showfps',
             position=(h_offs + 69, v - 6),
             size=(210, 30),
             scale=0.86,
@@ -430,6 +439,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
         if show_tv_mode:
             tvc = ConfigCheckBox(
                 parent=self._root_widget,
+                check_box_id=f'{self.main_window_id_prefix}|tvborder',
                 position=(h_offs + 240, v - 6),
                 size=(210, 30),
                 scale=0.86,
@@ -445,7 +455,7 @@ class GraphicsSettingsWindow(bui.MainWindow):
         # Make a timer to update our controls in case the config changes
         # under us.
         self._update_timer = bui.AppTimer(
-            0.25, bui.WeakCall(self._update_controls), repeat=True
+            0.25, bui.WeakCallStrict(self._update_controls), repeat=True
         )
 
     @override
@@ -457,6 +467,10 @@ class GraphicsSettingsWindow(bui.MainWindow):
                 transition=transition, origin_widget=origin_widget
             )
         )
+
+    @override
+    def main_window_should_preserve_selection(self) -> bool:
+        return True
 
     @override
     def on_main_window_close(self) -> None:

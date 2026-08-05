@@ -29,10 +29,13 @@ class LoginType(Enum):
     #: Apple's Game Center
     GAME_CENTER = 'game_center'
 
+    #: Discord (OAuth2 via Discord Social SDK)
+    DISCORD = 'discord'
+
     @property
     def displayname(self) -> str:
         """A human readable name for this value."""
-        cls = type(self)
+        cls = LoginType
         match self:
             case cls.EMAIL:
                 return 'Email/Password'
@@ -40,11 +43,13 @@ class LoginType(Enum):
                 return 'Google Play Games'
             case cls.GAME_CENTER:
                 return 'Game Center'
+            case cls.DISCORD:
+                return 'Discord'
 
     @property
     def displaynameshort(self) -> str:
         """A short human readable name for this value."""
-        cls = type(self)
+        cls = LoginType
         match self:
             case cls.EMAIL:
                 return 'Email'
@@ -52,3 +57,5 @@ class LoginType(Enum):
                 return 'GPGS'
             case cls.GAME_CENTER:
                 return 'Game Center'
+            case cls.DISCORD:
+                return 'Discord'

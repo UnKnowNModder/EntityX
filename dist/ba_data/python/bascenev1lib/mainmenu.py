@@ -16,13 +16,13 @@ import bauiv1 as bui
 if TYPE_CHECKING:
     from typing import Any
 
-    import bacommon.bs
+    import bacommon.classic
+
+    from bascenev1lib.actor.spazbot import DemoSpazBotSet
 
 
 class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
     """Activity showing the rotating main menu bg stuff."""
-
-    _stdassets = bs.Dependency(bs.AssetPackage, 'stdassets@1')
 
     _did_initial_transition = False
 
@@ -36,12 +36,14 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
         self.version: bs.NodeActor | None = None
         self.beta_info: bs.NodeActor | None = None
         self.beta_info_2: bs.NodeActor | None = None
-        self.bottom: bs.NodeActor | None = None
-        self.vr_bottom_fill: bs.NodeActor | None = None
-        self.vr_top_fill: bs.NodeActor | None = None
-        self.terrain: bs.NodeActor | None = None
+        self.map: bs.Map | None = None
+        self.bot_sets: list[DemoSpazBotSet] = []
         self.trees: bs.NodeActor | None = None
-        self.bgterrain: bs.NodeActor | None = None
+        # TEMP: asset-package CAS load test (initiative Phase 2). Drop
+        # once Phase 3 wrapper modules generate qualified refs and
+        # there's a less ad-hoc place to exercise this.
+        self._cas_hello_image: bs.NodeActor | None = None
+        self._cas_std_image: bs.NodeActor | None = None
         self._ts = 0.86
         self._language: str | None = None
         self._update_timer: bs.Timer | None = None
@@ -51,8 +53,13 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
 
     @override
     def on_transition_in(self) -> None:
-        # pylint: disable=too-many-locals
         super().on_transition_in()
+
+        from bascenev1lib.maps import ThePad
+
+        ThePad.preload()
+        self.map = ThePad(main_menu_style=True)
+
         random.seed(123)
         app = bs.app
         env = app.env
@@ -108,17 +115,8 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
                 assert self.beta_info.node
                 bs.animate(self.beta_info.node, 'opacity', {1.3: 0, 1.8: 1.0})
 
-        mesh = bs.getmesh('thePadLevel')
         trees_mesh = bs.getmesh('trees')
-        bottom_mesh = bs.getmesh('thePadLevelBottom')
-        color_texture = bs.gettexture('thePadLevelColor')
         trees_texture = bs.gettexture('treesColor')
-        bgtex = bs.gettexture('menuBG')
-        bgmesh = bs.getmesh('thePadBG')
-
-        # Load these last since most platforms don't use them.
-        vr_bottom_fill_mesh = bs.getmesh('thePadVRFillBottom')
-        vr_top_fill_mesh = bs.getmesh('thePadVRFillTop')
 
         gnode = self.globalsnode
         gnode.camera_mode = 'rotate'
@@ -129,51 +127,6 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
         gnode.vignette_outer = (0.45, 0.55, 0.54)
         gnode.vignette_inner = (0.99, 0.98, 0.98)
 
-        self.bottom = bs.NodeActor(
-            bs.newnode(
-                'terrain',
-                attrs={
-                    'mesh': bottom_mesh,
-                    'lighting': False,
-                    'reflection': 'soft',
-                    'reflection_scale': [0.45],
-                    'color_texture': color_texture,
-                },
-            )
-        )
-        self.vr_bottom_fill = bs.NodeActor(
-            bs.newnode(
-                'terrain',
-                attrs={
-                    'mesh': vr_bottom_fill_mesh,
-                    'lighting': False,
-                    'vr_only': True,
-                    'color_texture': color_texture,
-                },
-            )
-        )
-        self.vr_top_fill = bs.NodeActor(
-            bs.newnode(
-                'terrain',
-                attrs={
-                    'mesh': vr_top_fill_mesh,
-                    'vr_only': True,
-                    'lighting': False,
-                    'color_texture': bgtex,
-                },
-            )
-        )
-        self.terrain = bs.NodeActor(
-            bs.newnode(
-                'terrain',
-                attrs={
-                    'mesh': mesh,
-                    'color_texture': color_texture,
-                    'reflection': 'soft',
-                    'reflection_scale': [0.3],
-                },
-            )
-        )
         self.trees = bs.NodeActor(
             bs.newnode(
                 'terrain',
@@ -186,24 +139,53 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
                 },
             )
         )
-        self.bgterrain = bs.NodeActor(
-            bs.newnode(
-                'terrain',
-                attrs={
-                    'mesh': bgmesh,
-                    'color': (0.92, 0.91, 0.9),
-                    'lighting': False,
-                    'background': True,
-                    'color_texture': bgtex,
-                },
+
+        # TEMP: asset-package CAS load smoke test. Loads helloworld via
+        # the typed wrapper modules so we exercise the full
+        # wrapper-module pin path end-to-end (each resolves to
+        # ``<apverid>:mydir/helloworld``; ``assetpins`` keeps the embedded
+        # apverids current). Two packages are loaded to cover both paths:
+        # ``builtinassets`` (bundled — registered before construct-mode)
+        # and ``stdassets`` (bastdassets — downloaded by construct-mode
+        # before we get here, so this also exercises the fetch path).
+        # Gated on a path that only exists on the original dev's Mac so
+        # this temp test code stays invisible after pubsyncs until we
+        # tear it out.
+        import os
+
+        if os.path.isdir('/Users/ericf'):
+            from bascenev1 import builtinassets, stdassets
+
+            self._cas_hello_image = bs.NodeActor(
+                bs.newnode(
+                    'image',
+                    attrs={
+                        'position': (-180.0, 0.0),
+                        'texture': builtinassets.mydir.helloworld,
+                        'attach': 'center',
+                        'scale': (300.0, 300.0),
+                        'absolute_scale': True,
+                    },
+                )
             )
-        )
+            self._cas_std_image = bs.NodeActor(
+                bs.newnode(
+                    'image',
+                    attrs={
+                        'position': (180.0, 0.0),
+                        'texture': stdassets.mydir.helloworld,
+                        'attach': 'center',
+                        'scale': (300.0, 300.0),
+                        'absolute_scale': True,
+                    },
+                )
+            )
 
         self._update_timer = bs.Timer(0.1, self._update, repeat=True)
         self._update()
 
         # Hopefully this won't hitch but lets space these out anyway.
-        bs.add_clean_frame_callback(bs.WeakCall(self._start_preloads))
+        bs.add_clean_frame_callback(bs.WeakCallStrict(self._start_preloads))
 
         random.seed()
 
@@ -219,7 +201,6 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
         app.classic.invoke_main_menu_ui()
 
     def _update(self) -> None:
-        # pylint: disable=too-many-locals
         # pylint: disable=too-many-statements
         app = bs.app
         assert app.classic is not None
@@ -441,8 +422,6 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
         shadow: bool = False,
     ) -> None:
         # pylint: disable=too-many-branches
-        # pylint: disable=too-many-locals
-        # pylint: disable=too-many-statements
         if shadow:
             word_obj = bs.NodeActor(
                 bs.newnode(
@@ -569,7 +548,6 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
         rotate: float = 0.0,
         vr_depth_offset: float = 0.0,
     ) -> None:
-        # pylint: disable=too-many-locals
         if custom_texture is None:
             custom_texture = self._get_custom_logo_tex_name()
         self._custom_logo_tex_name = custom_texture
@@ -721,7 +699,7 @@ class NewsDisplay:
         # If we're signed in, fetch news immediately. Otherwise wait
         # until we are signed in.
         self._fetch_timer: bs.Timer | None = bs.Timer(
-            1.0, bs.WeakCall(self._try_fetching_news), repeat=True
+            1.0, bs.WeakCallStrict(self._try_fetching_news), repeat=True
         )
         self._try_fetching_news()
 
@@ -835,7 +813,7 @@ class NewsDisplay:
             ]
             self._phrase_change_timer = bs.Timer(
                 (self._message_duration + self._message_spacing),
-                bs.WeakCall(self._change_phrase),
+                bs.WeakCallStrict(self._change_phrase),
                 repeat=True,
             )
 
@@ -890,10 +868,6 @@ def _preload1() -> None:
     for tex in [
         'iconRunaround',
         'iconOnslaught',
-        'medalComplete',
-        'medalBronze',
-        'medalSilver',
-        'medalGold',
         'characterIconMask',
     ]:
         bs.gettexture(tex)
@@ -958,7 +932,7 @@ def _preload3() -> None:
 
 
 def _preload4() -> None:
-    for tname in ['bar', 'meter', 'null', 'flagColor', 'achievementOutline']:
+    for tname in ['bar', 'null', 'flagColor', 'achievementOutline']:
         bs.gettexture(tname)
     for mname in ['frameInset', 'meterTransparent', 'achievementOutline']:
         bs.getmesh(mname)
@@ -973,10 +947,7 @@ class MainMenuSession(bs.Session):
     """Session that runs the main menu environment."""
 
     def __init__(self) -> None:
-        # Gather dependencies we'll need (just our activity).
-        self._activity_deps = bs.DependencySet(bs.Dependency(MainMenuActivity))
-
-        super().__init__([self._activity_deps])
+        super().__init__()
         self._locked = False
         self.setactivity(bs.newactivity(MainMenuActivity))
 

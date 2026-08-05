@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
-import logging
 
 import bauiv1 as bui
 
@@ -20,12 +19,14 @@ class AllSettingsWindow(bui.MainWindow):
         self,
         transition: str | None = 'in_right',
         origin_widget: bui.Widget | None = None,
+        auxiliary_style: bool = True,
     ):
-        # pylint: disable=too-many-locals
 
         # Preload some modules we use in a background thread so we won't
         # have a visual hitch when the user taps them.
         bui.app.threadpool.submit_no_wait(self._preload_modules)
+
+        self._uiopenstate = bui.UIOpenState('settings')
 
         bui.set_analytics_screen('Settings Window')
         assert bui.app.classic is not None
@@ -60,17 +61,14 @@ class AllSettingsWindow(bui.MainWindow):
         # offset by half the width/height of our target area.
         yoffs = 0.5 * height + 0.5 * target_height + 30.0
 
-        # scroll_width = target_width
-        # scroll_height = target_height - 25
-        # scroll_bottom = yoffs - 54 - scroll_height
-
         super().__init__(
             root_widget=bui.containerwidget(
                 size=(width, height),
                 toolbar_visibility=(
-                    'menu_minimal'
-                    if (uiscale is bui.UIScale.SMALL and not bui.in_main_menu())
-                    else 'menu_full'
+                    'menu_full' if bui.in_main_menu() else 'menu_minimal'
+                ),
+                toolbar_cancel_button_style=(
+                    'close' if auxiliary_style else 'back'
                 ),
                 scale=scale,
             ),
@@ -88,13 +86,18 @@ class AllSettingsWindow(bui.MainWindow):
         else:
             self._back_button = btn = bui.buttonwidget(
                 parent=self._root_widget,
+                id=f'{self.main_window_id_prefix}|back',
                 autoselect=True,
                 position=(50, yoffs - 80.0),
                 size=(70, 70),
                 scale=0.8,
                 text_scale=1.2,
-                label=bui.charstr(bui.SpecialChar.BACK),
-                button_type='backSmall',
+                label=bui.charstr(
+                    bui.SpecialChar.CLOSE
+                    if auxiliary_style
+                    else bui.SpecialChar.BACK
+                ),
+                button_type=None if auxiliary_style else 'backSmall',
                 on_activate_call=self.main_window_back,
             )
             bui.containerwidget(edit=self._root_widget, cancel_button=btn)
@@ -128,18 +131,20 @@ class AllSettingsWindow(bui.MainWindow):
         y = height * 0.5 - bheight * 0.5 + ynudge
 
         def _button(
+            *,
+            widgetid: str,
             position: tuple[float, float],
             label: bui.Lstr,
             call: Callable[[], None],
             texture: bui.Texture,
             imgsize: float,
-            *,
             color: tuple[float, float, float] = (1.0, 1.0, 1.0),
             imgoffs: tuple[float, float] = (0.0, 0.0),
         ) -> bui.Widget:
             x, y = position
             btn = bui.buttonwidget(
                 parent=self._root_widget,
+                id=widgetid,
                 autoselect=True,
                 position=(x, y),
                 size=(bwidth, bheight),
@@ -172,6 +177,7 @@ class AllSettingsWindow(bui.MainWindow):
             return btn
 
         self._controllers_button = _button(
+            widgetid=f'{self.main_window_id_prefix}|controllers',
             position=(x, y),
             label=bui.Lstr(resource=f'{self._r}.controllersText'),
             call=self._do_controllers,
@@ -182,6 +188,7 @@ class AllSettingsWindow(bui.MainWindow):
         x += bwidth + margin
 
         self._graphics_button = _button(
+            widgetid=f'{self.main_window_id_prefix}|graphics',
             position=(x, y),
             label=bui.Lstr(resource=f'{self._r}.graphicsText'),
             call=self._do_graphics,
@@ -192,6 +199,7 @@ class AllSettingsWindow(bui.MainWindow):
         x += bwidth + margin
 
         self._audio_button = _button(
+            widgetid=f'{self.main_window_id_prefix}|audio',
             position=(x, y),
             label=bui.Lstr(resource=f'{self._r}.audioText'),
             call=self._do_audio,
@@ -202,6 +210,7 @@ class AllSettingsWindow(bui.MainWindow):
         x += bwidth + margin
 
         self._advanced_button = _button(
+            widgetid=f'{self.main_window_id_prefix}|advanced',
             position=(x, y),
             label=bui.Lstr(resource=f'{self._r}.advancedText'),
             call=self._do_advanced,
@@ -211,9 +220,14 @@ class AllSettingsWindow(bui.MainWindow):
             imgoffs=(0, 5.0),
         )
 
+        # Select controllers by default.
+        bui.containerwidget(
+            edit=self._root_widget, selected_child=self._controllers_button
+        )
+
         # Hmm; we're now wide enough that being limited to pressing up
         # might be ok.
-        if bool(False):
+        if bool(True):
             # Left from our leftmost button should go to back button.
             if self._back_button is None:
                 bbtn = bui.get_special_widget('back_button')
@@ -225,8 +239,6 @@ class AllSettingsWindow(bui.MainWindow):
                 right_widget=bui.get_special_widget('squad_button'),
             )
 
-        self._restore_state()
-
     @override
     def get_main_window_state(self) -> bui.MainWindowState:
         # Support recreating our window for back/refresh purposes.
@@ -234,12 +246,15 @@ class AllSettingsWindow(bui.MainWindow):
         return bui.BasicMainWindowState(
             create_call=lambda transition, origin_widget: cls(
                 transition=transition, origin_widget=origin_widget
-            )
+            ),
+            # Keeps our icon glowing as long as this is in the back
+            # stack.
+            uiopenstate=self._uiopenstate,
         )
 
     @override
-    def on_main_window_close(self) -> None:
-        self._save_state()
+    def main_window_should_preserve_selection(self) -> bool:
+        return True
 
     @staticmethod
     def _preload_modules() -> None:
@@ -254,90 +269,32 @@ class AllSettingsWindow(bui.MainWindow):
         # pylint: disable=cyclic-import
         from bauiv1lib.settings.controls import ControlsSettingsWindow
 
-        # no-op if we're not in control.
-        if not self.main_window_has_control():
-            return
-
         self.main_window_replace(
-            ControlsSettingsWindow(origin_widget=self._controllers_button)
+            lambda: ControlsSettingsWindow(
+                origin_widget=self._controllers_button
+            )
         )
 
     def _do_graphics(self) -> None:
         # pylint: disable=cyclic-import
         from bauiv1lib.settings.graphics import GraphicsSettingsWindow
 
-        # no-op if we're not in control.
-        if not self.main_window_has_control():
-            return
-
         self.main_window_replace(
-            GraphicsSettingsWindow(origin_widget=self._graphics_button)
+            lambda: GraphicsSettingsWindow(origin_widget=self._graphics_button)
         )
 
     def _do_audio(self) -> None:
         # pylint: disable=cyclic-import
         from bauiv1lib.settings.audio import AudioSettingsWindow
 
-        # no-op if we're not in control.
-        if not self.main_window_has_control():
-            return
-
         self.main_window_replace(
-            AudioSettingsWindow(origin_widget=self._audio_button)
+            lambda: AudioSettingsWindow(origin_widget=self._audio_button)
         )
 
     def _do_advanced(self) -> None:
         # pylint: disable=cyclic-import
         from bauiv1lib.settings.advanced import AdvancedSettingsWindow
 
-        # no-op if we're not in control.
-        if not self.main_window_has_control():
-            return
-
         self.main_window_replace(
-            AdvancedSettingsWindow(origin_widget=self._advanced_button)
+            lambda: AdvancedSettingsWindow(origin_widget=self._advanced_button)
         )
-
-    def _save_state(self) -> None:
-        try:
-            sel = self._root_widget.get_selected_child()
-            if sel == self._controllers_button:
-                sel_name = 'Controllers'
-            elif sel == self._graphics_button:
-                sel_name = 'Graphics'
-            elif sel == self._audio_button:
-                sel_name = 'Audio'
-            elif sel == self._advanced_button:
-                sel_name = 'Advanced'
-            elif sel == self._back_button:
-                sel_name = 'Back'
-            else:
-                raise ValueError(f'unrecognized selection \'{sel}\'')
-            assert bui.app.classic is not None
-            bui.app.ui_v1.window_states[type(self)] = {'sel_name': sel_name}
-        except Exception:
-            logging.exception('Error saving state for %s.', self)
-
-    def _restore_state(self) -> None:
-        try:
-            assert bui.app.classic is not None
-            sel_name = bui.app.ui_v1.window_states.get(type(self), {}).get(
-                'sel_name'
-            )
-            sel: bui.Widget | None
-            if sel_name == 'Controllers':
-                sel = self._controllers_button
-            elif sel_name == 'Graphics':
-                sel = self._graphics_button
-            elif sel_name == 'Audio':
-                sel = self._audio_button
-            elif sel_name == 'Advanced':
-                sel = self._advanced_button
-            elif sel_name == 'Back':
-                sel = self._back_button
-            else:
-                sel = self._controllers_button
-            if sel is not None:
-                bui.containerwidget(edit=self._root_widget, selected_child=sel)
-        except Exception:
-            logging.exception('Error restoring state for %s.', self)

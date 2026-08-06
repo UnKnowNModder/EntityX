@@ -29,14 +29,16 @@ from ._enums import (
 	Match
 )
 
+module = sys.modules[__name__]
+module.config = Config()
+module.roles = Roles()
+module.tournament = Tournament()
+module.stats = Stats()
+print("✅ Initiated storage methods. ")
+
 # ba_meta export babase.Plugin
 class Initialize(babase.Plugin):
 	"""initializes the module and sets up storage methods."""
 
 	def __init__(self) -> None:
-		module = sys.modules[__name__]
-		module.config = Config()
-		module.roles = Roles()
-		module.tournament = Tournament()
-		module.stats = Stats()
-		print("✅ Initiated storage methods. ")
+		pass

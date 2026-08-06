@@ -27,7 +27,7 @@ class TournamentSession(DualTeamSession):
 
 	@override
 	def on_player_request(self, player: bascenev1.SessionPlayer) -> bool:
-		identifier = player.get_v1_account_id()
+		identifier = player.get_account_id()
 		client = Client(player.inputdevice.client_id, identifier)
 		if bacore.tournament.match and not client.is_participant:
 			client.error("A match is in progress — joining is not allowed.")
@@ -77,7 +77,7 @@ class TournamentSession(DualTeamSession):
 				Client(player.inputdevice.client_id).error("Incorrect team — please verify and join your assigned team.")
 				return None
 			# keep track of chooser's team incase we might need to disqualify them.
-			self._requested_teams[player.get_v1_account_id()] = msg.chooser.sessionteam
+			self._requested_teams[player.get_account_id()] = msg.chooser.sessionteam
 			self._on_player_ready(msg.chooser)
 		
 		else:

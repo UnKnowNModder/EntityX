@@ -76,7 +76,7 @@ class Tournament(Storage):
 
 	def get_player_team(self, player: bascenev1.SessionPlayer) -> dict:
 		""" returns the tournament team this player is associated with. """
-		account_id = player.get_v1_account_id()
+		account_id = player.get_account_id()
 		for team in self.match["teams"]:
 			if account_id in team["participants"]:
 				return team

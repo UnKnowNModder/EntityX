@@ -40,7 +40,7 @@ class Text:
 def attach_rank(self, player: bs.Player) -> None:
 	""" attaches the rank on player head. """
 	if player and player.sessionplayer:
-		account_id = player.sessionplayer.get_v1_account_id()
+		account_id = player.sessionplayer.get_account_id()
 		stats = bacore.stats.get(account_id)
 		if stats:
 			rank = f"#{stats['rank']}"

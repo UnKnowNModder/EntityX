@@ -15,7 +15,7 @@ def update_stats(stats: bascenev1.Stats) -> None:
 	for record in stats.get_records().values():
 		player = record.player
 		if not player: continue
-		account_id = player.get_v1_account_id()
+		account_id = player.get_account_id()
 		if account_id:
 			rec_scores.setdefault(account_id, 0)
 			rec_scores[account_id] += record.accumscore

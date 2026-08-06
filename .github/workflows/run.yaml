@@ -1,0 +1,30 @@
+name: ballistica server run
+
+on:
+  workflow_dispatch:
+
+jobs:
+  server:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - name: checkout the repo
+      uses: actions/checkout@v4
+
+    - name: installation.
+      run: |
+        sudo apt install software-properties-common -y
+        sudo add-apt-repository ppa:deadsnakes/ppa
+        sudo apt install python3.13 python3.13-dev python3.13-venv python3-pip -y
+        sudo apt update && sudo apt upgrade
+
+    - name: show dir.
+      run: |
+        ls
+
+    - name: run server.
+      run: |
+        chmod 777 dist/bombsquad_headless
+        chmod 777 bombsquad_server
+        ./bbombsquad_server
+    

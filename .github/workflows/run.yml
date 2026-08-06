@@ -19,17 +19,22 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y python3.13 python3.13-dev python3.13-venv python3-pip
 
+    - name: show dir.
+      run: |
+        ls
+
     - name: start playit.gg tunnel.
       run: |
         docker run -d --name playit --net=host \
           -e SECRET_KEY=${{ secrets.PLAYIT }} \
           ghcr.io/playit-cloud/playit-agent:latest
-        sleep 5
+        sleep 15
         docker logs playit
+        docker logs playit 2>&1 | tail -n 5 | grep -q "tunnels loaded" || (echo "playit tunnel did not come up cleanly" && exit 1)
 
     - name: run server.
       run: |
         chmod 777 dist/bombsquad_headless
         chmod 777 bombsquad_server
+        docker logs -f playit 2>&1 | stdbuf -oL sed -u 's/^/[playit] /' &
         ./bombsquad_server
-    

@@ -1424,7 +1424,7 @@
     "competeInMiniGamesText": "在竞速游戏、飞行游戏中一决高下吧",
     "customize2Text": "支持自定义角色、游戏玩法，甚至背景音乐",
     "customizeText": "选择角色并创建自己的游戏关卡吧",
-    "sportsMoreFunText": "加入炸药后游戏会更嗨皮。",
+    "sportsMoreFunText": "加入炸药后游戏会变得更嗨皮。",
     "teamUpAgainstComputerText": "或者和机器人PK"
   },
   "storeText": "商店",
@@ -1966,7 +1966,7 @@
   "voteInProgressText": "已经有一个投票在进行中了",
   "votedAlreadyText": "你已经投过票啦！",
   "votesNeededText": "通过需要 ${NUMBER} 个投票",
-  "vsText": "对战",
+  "vsText": "vs.",
   "waitingForHostText": "（请等待${HOST}继续游戏）",
   "waitingForPlayersText": "等待玩家的加入……",
   "waitingInLineText": "正在排队等候（人满为患）...",

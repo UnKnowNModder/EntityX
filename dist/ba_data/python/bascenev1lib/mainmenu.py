@@ -24,6 +24,8 @@ if TYPE_CHECKING:
 class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
     """Activity showing the rotating main menu bg stuff."""
 
+    _stdassets = bs.Dependency(bs.AssetPackage, 'stdassets@1')
+
     _did_initial_transition = False
 
     def __init__(self, settings: dict):
@@ -39,11 +41,6 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
         self.map: bs.Map | None = None
         self.bot_sets: list[DemoSpazBotSet] = []
         self.trees: bs.NodeActor | None = None
-        # TEMP: asset-package CAS load test (initiative Phase 2). Drop
-        # once Phase 3 wrapper modules generate qualified refs and
-        # there's a less ad-hoc place to exercise this.
-        self._cas_hello_image: bs.NodeActor | None = None
-        self._cas_std_image: bs.NodeActor | None = None
         self._ts = 0.86
         self._language: str | None = None
         self._update_timer: bs.Timer | None = None
@@ -139,47 +136,6 @@ class MainMenuActivity(bs.Activity[bs.Player, bs.Team]):
                 },
             )
         )
-
-        # TEMP: asset-package CAS load smoke test. Loads helloworld via
-        # the typed wrapper modules so we exercise the full
-        # wrapper-module pin path end-to-end (each resolves to
-        # ``<apverid>:mydir/helloworld``; ``assetpins`` keeps the embedded
-        # apverids current). Two packages are loaded to cover both paths:
-        # ``builtinassets`` (bundled — registered before construct-mode)
-        # and ``stdassets`` (bastdassets — downloaded by construct-mode
-        # before we get here, so this also exercises the fetch path).
-        # Gated on a path that only exists on the original dev's Mac so
-        # this temp test code stays invisible after pubsyncs until we
-        # tear it out.
-        import os
-
-        if os.path.isdir('/Users/ericf'):
-            from bascenev1 import builtinassets, stdassets
-
-            self._cas_hello_image = bs.NodeActor(
-                bs.newnode(
-                    'image',
-                    attrs={
-                        'position': (-180.0, 0.0),
-                        'texture': builtinassets.mydir.helloworld,
-                        'attach': 'center',
-                        'scale': (300.0, 300.0),
-                        'absolute_scale': True,
-                    },
-                )
-            )
-            self._cas_std_image = bs.NodeActor(
-                bs.newnode(
-                    'image',
-                    attrs={
-                        'position': (180.0, 0.0),
-                        'texture': stdassets.mydir.helloworld,
-                        'attach': 'center',
-                        'scale': (300.0, 300.0),
-                        'absolute_scale': True,
-                    },
-                )
-            )
 
         self._update_timer = bs.Timer(0.1, self._update, repeat=True)
         self._update()
@@ -868,6 +824,10 @@ def _preload1() -> None:
     for tex in [
         'iconRunaround',
         'iconOnslaught',
+        'medalComplete',
+        'medalBronze',
+        'medalSilver',
+        'medalGold',
         'characterIconMask',
     ]:
         bs.gettexture(tex)
@@ -932,7 +892,7 @@ def _preload3() -> None:
 
 
 def _preload4() -> None:
-    for tname in ['bar', 'null', 'flagColor', 'achievementOutline']:
+    for tname in ['bar', 'meter', 'null', 'flagColor', 'achievementOutline']:
         bs.gettexture(tname)
     for mname in ['frameInset', 'meterTransparent', 'achievementOutline']:
         bs.getmesh(mname)
@@ -947,7 +907,10 @@ class MainMenuSession(bs.Session):
     """Session that runs the main menu environment."""
 
     def __init__(self) -> None:
-        super().__init__()
+        # Gather dependencies we'll need (just our activity).
+        self._activity_deps = bs.DependencySet(bs.Dependency(MainMenuActivity))
+
+        super().__init__([self._activity_deps])
         self._locked = False
         self.setactivity(bs.newactivity(MainMenuActivity))
 

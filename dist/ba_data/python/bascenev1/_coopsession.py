@@ -12,7 +12,7 @@ import _bascenev1
 from bascenev1._session import Session
 
 if TYPE_CHECKING:
-    from typing import Any, Callable
+    from typing import Any, Callable, Sequence
 
     import bascenev1
 
@@ -63,7 +63,11 @@ class CoopSession(Session):
         else:
             submit_score = True
 
+        # print('FIXME: COOP SESSION WOULD CALC DEPS.')
+        depsets: Sequence[bascenev1.DependencySet] = []
+
         super().__init__(
+            depsets,
             team_names=TEAM_NAMES,
             team_colors=TEAM_COLORS,
             min_players=min_players,

@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from typing import Callable, Any
 
     from efro.message import Message, Response, BoolResponse
-    from bacommon import securedata
     import bacommon.classic
     import bacommon.clouddialog as cdlg
 
@@ -47,12 +46,6 @@ class CloudSubsystem(babase.AppSubsystem):
         self.on_connectivity_changed_callbacks: CallbackSet[
             Callable[[bool], None]
         ] = CallbackSet()
-
-        # Latest :class:`bacommon.securedata.Reader` bundled by basn
-        # in the v2-transport handshake response. Stays the same
-        # across sessions until a new handshake bundles a fresh
-        # one. ``None`` until any session has connected.
-        self._secure_data_reader: securedata.Reader | None = None
 
         # Restore saved cloud-vals (or init to default).
         try:
@@ -89,64 +82,12 @@ class CloudSubsystem(babase.AppSubsystem):
         """
         return self.is_connected()
 
-    @property
-    def secure_data_reader(self) -> securedata.Reader:
-        """The latest :class:`bacommon.securedata.Reader` from basn.
-
-        Bundled into each v2-transport handshake response; valid
-        for at least the connecting session's full lifetime. Use
-        it to verify any :class:`bacommon.securedata.Archive` the
-        client receives (``reader.read(archive)`` returns the
-        signed bytes or raises :class:`bacommon.securedata.Invalid`).
-
-        Raises :class:`RuntimeError` if no v2-transport session
-        has connected yet — callers that need a Reader before any
-        session is up should use the static-keys path
-        (``_babase.verify_ed25519`` against
-        :data:`bacommon.securedata.STATIC_DATA_PUBLIC_KEYS`)
-        instead, which is what the InsecureDirective verification
-        uses today.
-        """
-        if self._secure_data_reader is None:
-            raise RuntimeError(
-                'No secure-data Reader available;'
-                ' no v2-transport session has connected yet.'
-            )
-        return self._secure_data_reader
-
-    def _set_secure_data_reader(
-        self, reader: 'securedata.Reader | None'
-    ) -> None:
-        """Stash the Reader from a v2-transport handshake response.
-
-        :meta private:
-        """
-        # ``None`` arrives during a partial rollout where the
-        # connected basn predates the secure_data_reader handshake
-        # field. Keep whatever we already had — a slightly-stale
-        # Reader from a prior handshake beats no Reader at all.
-        if reader is not None:
-            self._secure_data_reader = reader
-
     def is_connected(self) -> bool:
         """Implementation for connected attr.
 
         :meta private:
         """
         raise NotImplementedError()
-
-    def get_connected_node_address(self) -> str | None:
-        """Return the ``host:port`` of the basn node we're connected to.
-
-        Used by the asset-download path to issue ``GET /casblob/{hash}``
-        requests to the same node serving our transport session (the
-        node's aiohttp app serves both the WebSocket transport and plain
-        HTTPS at this address). Returns ``None`` when not connected (or
-        in implementations without a node-based transport).
-
-        :meta private:
-        """
-        return None
 
     def on_connectivity_changed(self, connected: bool) -> None:
         """Called when cloud connectivity state changes.
@@ -353,6 +294,15 @@ class CloudSubsystem(babase.AppSubsystem):
     @overload
     def send_message_cb(
         self,
+        msg: bacommon.cloud.SecureDataCheckMessage,
+        on_response: Callable[
+            [bacommon.cloud.SecureDataCheckResponse | Exception], None
+        ],
+    ) -> None: ...
+
+    @overload
+    def send_message_cb(
+        self,
         msg: bacommon.cloud.SecureDataCheckerRequest,
         on_response: Callable[
             [bacommon.cloud.SecureDataCheckerResponse | Exception], None
@@ -440,11 +390,6 @@ class CloudSubsystem(babase.AppSubsystem):
     def send_message(
         self, msg: bacommon.cloud.FulfillDocUIRequest
     ) -> bacommon.cloud.FulfillDocUIResponse: ...
-
-    @overload
-    def send_message(
-        self, msg: bacommon.cloud.ResolveAssetPackageMessage
-    ) -> bacommon.cloud.ResolveAssetPackageResponse: ...
 
     def send_message(self, msg: Message) -> Response | None:
         """Synchronously send a message to the cloud.

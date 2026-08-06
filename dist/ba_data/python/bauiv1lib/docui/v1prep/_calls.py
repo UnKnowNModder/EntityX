@@ -203,7 +203,7 @@ def prep_page(
     for i, (row, rowprep) in enumerate(
         zip(page_rows_filtered, rows, strict=True)
     ):
-        tdelaybase = 0.15 + 0.06 * i
+        tdelaybase = 0.06 * (i + 1)
 
         y -= row.spacing_top
 
@@ -296,7 +296,6 @@ def prep_page(
                     transition_delay=(
                         None if immediate else (tdelaybase + 0.1)
                     ),
-                    transition_type='scale',
                 )
             )
             y -= (
@@ -344,7 +343,6 @@ def prep_page(
                     transition_delay=(
                         None if immediate else (tdelaybase + 0.2)
                     ),
-                    transition_type='scale',
                 )
             )
             y -= row_subtitle_height
@@ -409,8 +407,9 @@ def prep_page(
         # Clamp or max delay if we've got lots of buttons.
         bdelaymax = min(0.5, 0.03 * bcount)
         for j, button in enumerate(row.buttons):
-            # Leftmost buttons appear first; pop-in sweeps left-to-right.
-            tdelayamt = j / max(1, bcount - 1)
+            # Calc amt 1 -> 0 across the row.
+            tdelayamt = 1.0 - (j / max(1, bcount - 1))
+            # Rightmost buttons slide in first.
             tdelay = tdelaybase + tdelayamt * bdelaymax
 
             xorig = x
@@ -530,7 +529,6 @@ def prep_page(
                     autoselect=True,
                     enable_sound=False,
                     transition_delay=None if immediate else tdelay,
-                    transition_type='scale',
                     icon_color=button.icon_color,
                     iconscale=button.icon_scale,
                     better_bg_fit=True,

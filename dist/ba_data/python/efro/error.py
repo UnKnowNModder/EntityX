@@ -1,6 +1,3 @@
-# EfroSynced from ballistica-internal.
-# EFRO_SYNC_HASH=53457934136221791503769390008780313724
-#
 # Released under the MIT License. See LICENSE for details.
 #
 """Common errors and related functionality."""
@@ -375,9 +372,6 @@ def is_asyncio_streams_communication_error(exc: BaseException) -> bool:
             return True
 
         if 'SSL: SSLV3_ALERT_HANDSHAKE_FAILURE' in excstr:
-            return True
-
-        if 'record layer failure' in excstr:
             return True
 
     return False

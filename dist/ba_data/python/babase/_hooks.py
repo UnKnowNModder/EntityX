@@ -351,20 +351,6 @@ def implicit_sign_out(login_type_str: str) -> None:
     )
 
 
-def discord_auth_received(refresh_token: str, discord_user_id: str) -> None:
-    """Forward a Discord OAuth2 refresh token to the account subsystem.
-
-    Called from native on initial Discord sign-in and on each
-    successful ``RefreshToken`` rotation. Empty strings are treated as
-    None (signal to clear stored state).
-    """
-    assert _babase.app.plus is not None
-    _babase.app.plus.accounts.on_discord_auth_received(
-        refresh_token=refresh_token if refresh_token else None,
-        discord_user_id=discord_user_id if discord_user_id else None,
-    )
-
-
 def login_adapter_get_sign_in_token_response(
     login_type_str: str, attempt_id_str: str, result_str: str
 ) -> None:
@@ -380,17 +366,6 @@ def login_adapter_get_sign_in_token_response(
     adapter = _babase.app.plus.accounts.login_adapters[login_type]
     assert isinstance(adapter, LoginAdapterNative)
     adapter.on_sign_in_complete(attempt_id=attempt_id, result=result)
-
-
-def discord_sign_in_token_response(
-    attempt_id_str: str, result_str: str
-) -> None:
-    """Discord explicit sign-in completed; forward to the pending attempt."""
-    from babase._login import on_discord_sign_in_token_response
-
-    attempt_id = int(attempt_id_str)
-    result = None if result_str == '' else result_str
-    on_discord_sign_in_token_response(attempt_id=attempt_id, result=result)
 
 
 def show_client_too_old_error() -> None:
@@ -519,7 +494,7 @@ def _do_start_native_repl() -> None:
             if alias is not None:
                 main_globals[alias] = mod
         except Exception:
-            balog.exception('Error in convenience import of %s.', module_name)
+            balog.exception('Error importing default module %s.', module_name)
 
     if default_imports:
         parts = [
@@ -548,9 +523,7 @@ def v2_auth_request(global_app_instance_id: str) -> None | tuple[bool, str]:
     return out
 
 
-def v2_auth_data(
-    token: str,
-) -> None | tuple[str, str, dict, list[str] | None]:
+def v2_auth_data(token: str) -> None | tuple[str, str, dict]:
     """Look up autheneticated v2 account data via a token."""
     assert _babase.in_logic_thread()
 
@@ -568,5 +541,4 @@ def v2_auth_data(
         authdata.account_id,
         authdata.account_tag,
         authdata.player_profiles,
-        authdata.classic_purchases,
     )

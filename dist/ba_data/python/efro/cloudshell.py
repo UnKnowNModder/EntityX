@@ -15,6 +15,8 @@ class LockType(Enum):
 
     HOST = 'host'
     WORKSPACE = 'workspace'
+    PYCHARM = 'pycharm'
+    CLION = 'clion'
 
 
 @ioprepped

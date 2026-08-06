@@ -86,10 +86,8 @@ class PlusAppSubsystem(AppSubsystem):
         return _baplus.get_bootstrap_server_addresses()
 
     @staticmethod
-    def get_bootstrap_server_address() -> str | None:
-        """Return the most recent successful bootstrap server address.
-
-        Returns ``None`` if none has been set yet.
+    def get_bootstrap_server_address() -> str:
+        """Return address we can use to establish regional connection.
 
         :meta private:
         """

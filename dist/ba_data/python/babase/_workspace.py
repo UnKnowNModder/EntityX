@@ -22,8 +22,6 @@ if TYPE_CHECKING:
 
     import babase
 
-_log = logging.getLogger('ba.workspace')
-
 
 class WorkspaceSubsystem:
     """Subsystem for workspace handling in the app.
@@ -91,10 +89,7 @@ class WorkspaceSubsystem:
             # allow using the previous synced state. (is this a good
             # idea?)
             if not plus.cloud.is_connected():
-                _log.info("Offline; skipping sync for '%s'.", workspacename)
                 raise _SkipSyncError()
-
-            _log.info("Syncing workspace '%s'...", workspacename)
 
             manifest = DirectoryManifest.create_from_disk(wspath)
 
@@ -119,11 +114,6 @@ class WorkspaceSubsystem:
                             workspaceid=workspaceid, state=state
                         )
                     )
-
-                # Server can signal a user-facing error in-band.
-                if response.error is not None:
-                    raise CleanError(response.error)
-
                 state = response.state
                 self._handle_deletes(
                     workspace_dir=wspath, deletes=response.deletes
@@ -139,7 +129,6 @@ class WorkspaceSubsystem:
                     break
                 state.iteration += 1
 
-            _log.info("Workspace '%s' synced successfully.", workspacename)
             _babase.pushcall(
                 partial(
                     self._successmsg,
@@ -167,7 +156,6 @@ class WorkspaceSubsystem:
             # Avoid reusing existing if we fail in the middle; could be
             # in wonky state.
             set_path = False
-            _log.warning("Workspace '%s' sync error: %s", workspacename, exc)
             _babase.pushcall(
                 partial(self._errmsg, Lstr(value=str(exc))),
                 from_other_thread=True,
@@ -175,7 +163,7 @@ class WorkspaceSubsystem:
         except Exception:
             # Ditto.
             set_path = False
-            _log.exception("Error syncing workspace '%s'.", workspacename)
+            logging.exception("Error syncing workspace '%s'.", workspacename)
             _babase.pushcall(
                 partial(
                     self._errmsg,

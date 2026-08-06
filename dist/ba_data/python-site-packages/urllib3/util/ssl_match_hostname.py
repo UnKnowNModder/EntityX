@@ -110,9 +110,17 @@ def match_hostname(
             "SSL socket or SSL context with either "
             "CERT_OPTIONAL or CERT_REQUIRED"
         )
-
     try:
-        host_ip = ipaddress.ip_address(hostname)
+        # Divergence from upstream: ipaddress can't handle byte str
+        #
+        # The ipaddress module shipped with Python < 3.9 does not support
+        # scoped IPv6 addresses so we unconditionally strip the Zone IDs for
+        # now. Once we drop support for Python 3.9 we can remove this branch.
+        if "%" in hostname:
+            host_ip = ipaddress.ip_address(hostname[: hostname.rfind("%")])
+        else:
+            host_ip = ipaddress.ip_address(hostname)
+
     except ValueError:
         # Not an IP address (common case)
         host_ip = None
@@ -138,9 +146,7 @@ def match_hostname(
                 if key == "commonName":
                     if _dnsname_match(value, hostname):
                         return
-                    dnsnames.append(
-                        value
-                    )  # Defensive: for older PyPy and OpenSSL versions
+                    dnsnames.append(value)  # Defensive: for Python < 3.9.3
 
     if len(dnsnames) > 1:
         raise CertificateError(

@@ -117,10 +117,7 @@ class AdvancedSettingsWindow(bui.MainWindow):
 
         self._show_use_insecure_connections = True
         if self._show_use_insecure_connections:
-            # 42 for the label+popup row, ~25 for extra descender so
-            # the description sits below the popup rather than
-            # overlapping it, 40 for spacing to the next row.
-            self._sub_height += 107
+            self._sub_height += 82
 
         self._do_vr_test_button = app.env.vr
         self._do_net_test_button = True
@@ -602,55 +599,27 @@ class AdvancedSettingsWindow(bui.MainWindow):
                 maxwidth=430,
             )
 
-        self._insecure_connections_popup: PopupMenu | None
+        self._use_insecure_connections_check_box: ConfigCheckBox | None
         if self._show_use_insecure_connections:
             v -= 42
-
-            # Popup on the left, label on the right — same row.
-            # Resolve the current stored value, normalizing legacy
-            # states so the popup always reflects a valid choice.
-            current_mode = bui.app.config.resolve('Insecure Connections')
-            if current_mode not in ('always', 'auto', 'never'):
-                current_mode = 'auto'
-
-            self._insecure_connections_popup = PopupMenu(
+            self._use_insecure_connections_check_box = ConfigCheckBox(
                 parent=self._subcontainer,
-                button_id=(f'{self.main_window_id_prefix}|insecureconnections'),
-                position=(50, v - 18),
-                width=180,
-                choices=['always', 'auto', 'never'],
-                choices_display=[
-                    bui.Lstr(resource='graphicsSettingsWindow.alwaysText'),
-                    bui.Lstr(resource='autoText'),
-                    bui.Lstr(resource='graphicsSettingsWindow.neverText'),
-                ],
-                current_choice=current_mode,
-                # WeakCallPartial so the popup's callback reference
-                # to self doesn't cycle with
-                # self._insecure_connections_popup — otherwise gc
-                # flags this window every open. Partial rather than
-                # Strict because PopupMenu passes the selected value
-                # as a runtime arg.
-                on_value_change_call=bui.WeakCallPartial(
-                    self._set_insecure_connections_mode
+                check_box_id=(
+                    f'{self.main_window_id_prefix}|useinsecureconnections'
                 ),
+                position=(50, v),
+                size=(self._sub_width - 100, 30),
+                configkey='Use Insecure Connections',
+                autoselect=True,
+                displayname=bui.Lstr(
+                    resource=(f'{self._r}.insecureConnectionsText')
+                ),
+                scale=1.0,
+                maxwidth=430,
             )
-
-            # Label sits to the right of the popup.
             bui.textwidget(
                 parent=self._subcontainer,
-                position=(224, v + 5),
-                size=(0, 0),
-                text=bui.Lstr(resource=f'{self._r}.insecureConnectionsText'),
-                maxwidth=300,
-                color=(0.8, 0.8, 0.8),
-                h_align='left',
-                v_align='center',
-            )
-
-            bui.textwidget(
-                parent=self._subcontainer,
-                position=(90, v - 45),
+                position=(90, v - 20),
                 size=(0, 0),
                 text=bui.Lstr(
                     resource=(f'{self._r}.insecureConnectionsDescriptionText')
@@ -662,9 +631,9 @@ class AdvancedSettingsWindow(bui.MainWindow):
                 h_align='left',
                 v_align='center',
             )
-            v -= 65
+            v -= 40
         else:
-            self._insecure_connections_popup = None
+            self._use_insecure_connections_check_box = None
 
         self._always_use_internal_keyboard_check_box: ConfigCheckBox | None
         if self._show_always_use_internal_keyboard:
@@ -867,19 +836,6 @@ class AdvancedSettingsWindow(bui.MainWindow):
             {'type': 'SET_MISC_VAL', 'name': 'langInform', 'value': val}
         )
         plus.run_v1_account_transactions()
-
-    def _set_insecure_connections_mode(self, value: str) -> None:
-        """Persist the user's tri-state ``Insecure Connections`` choice.
-
-        Takes effect on the next outbound server connection — existing
-        live transports keep running until they naturally cycle.
-        """
-        if value not in ('always', 'auto', 'never'):
-            # Defensive — shouldn't happen with our fixed choices.
-            value = 'auto'
-        cfg = bui.app.config
-        cfg['Insecure Connections'] = value
-        cfg.commit()
 
     def _on_vr_test_press(self) -> None:
         from bauiv1lib.settings.vrtesting import VRTestingWindow

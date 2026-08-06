@@ -85,7 +85,9 @@ class Permission(Enum):
 
 
 class SpecialChar(Enum):
-    """Special characters the game can print."""
+    """Special characters the engine can diplay. Note that this currently
+    needs to be manually kept in sync with bacommon.text.SpecialChar.
+    """
 
     DOWN_ARROW = 0
     UP_ARROW = 1
@@ -184,3 +186,8 @@ class SpecialChar(Enum):
     FLAG_CHILE = 94
     MIKIROG = 95
     V2_LOGO = 96
+    CLOSE = 97
+    SANTA_HAT = 98
+    POTATO = 99
+    PALM_TREE = 100
+    BOXING_GLOVE = 101

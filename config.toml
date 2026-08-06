@@ -22,7 +22,7 @@ party_is_public = false
 # that V1 ids do. You can use the following url to convert V1 ids to
 # V2 if you have an existing database of account ids for your
 # server: https://legacy.ballistica.net/v2id/YOURV1IDHERE
-authenticate_clients = true
+#authenticate_clients = true
 
 # Account IDs of server admins. Server admins are not kickable
 # through the default kick vote system and they are able to kick
@@ -58,13 +58,13 @@ authenticate_clients = true
 #
 # 43210 is the default and the only port that will show up in the
 # LAN browser tab.
-port = 43210
+#port = 43210
 
 # Max devices in the party. Note that this does *NOT* mean max
 # players. Any device in the party can have more than one player on
 # it if they have multiple controllers. Also, this number currently
 # includes the server so generally make it 1 bigger than you need.
-max_party_size = 9
+#max_party_size = 6
 
 # Max players that can join a session. If present this will override
 # the session's preferred max_players. if a value below 0 is given

@@ -1,6 +1,3 @@
-# EfroSynced from ballistica-internal.
-# EFRO_SYNC_HASH=108254279322450116963957420935737493125
-#
 # Released under the MIT License. See LICENSE for details.
 #
 # pylint: disable=too-many-lines
@@ -808,26 +805,11 @@ def unchanging_hostname() -> str:
     import platform
     import subprocess
 
-    # On Mac, read the user-set ComputerName directly out of the
-    # SystemConfiguration plist via plutil. This is the same
-    # source-of-truth that ``scutil --get ComputerName`` reads through
-    # configd, but plutil hits the file directly so it's also
-    # resilient to sandbox restrictions on configd access (Claude
-    # Code's sandbox blocks scutil's SCDynamicStore queries, causing
-    # them to return the generic factory default "MacBook Pro").
+    # On Mac, this should give the computer name assigned in System Prefs.
     if platform.system() == 'Darwin':
         return (
             subprocess.run(
-                [
-                    'plutil',
-                    '-extract',
-                    'System.System.ComputerName',
-                    'raw',
-                    '-o',
-                    '-',
-                    '/Library/Preferences/SystemConfiguration/'
-                    'preferences.plist',
-                ],
+                ['scutil', '--get', 'ComputerName'],
                 check=True,
                 capture_output=True,
             )
@@ -1090,29 +1072,6 @@ def prune_empty_dirs(prunedir: str) -> None:
                 ) from exc
 
 
-async def gather_strip(*coros: Any) -> list[Any]:
-    """asyncio.gather() with return_exceptions=True, traceback-stripped.
-
-    A common cause of reference cycles in async code is
-    asyncio.gather called with return_exceptions=True: each
-    coroutine that raised has its exception stored in the result
-    list with its full __traceback__, which keeps the originating
-    frames alive (see :func:`strip_exception_tracebacks`).
-
-    Use this anywhere you'd use ``gather(..., return_exceptions=True)``.
-    It returns the same list of results, but with exception
-    tracebacks already cleared so callers can log/inspect them
-    without creating a cycle.
-    """
-    import asyncio
-
-    results = await asyncio.gather(*coros, return_exceptions=True)
-    for r in results:
-        if isinstance(r, BaseException):
-            strip_exception_tracebacks(r)
-    return results
-
-
 def strip_exception_tracebacks(exc: BaseException) -> None:
     """Strip tracebacks from exceptions to break reference cycles.
 
@@ -1125,35 +1084,9 @@ def strip_exception_tracebacks(exc: BaseException) -> None:
     garbage collector.
 
     This call strips tracebacks from the provided exception, any
-    exceptions that were active when it was raised, any it was
-    explicitly raised from, and (for :class:`BaseExceptionGroup`)
-    any nested child exceptions, recursively.
-
-    Important: ONLY call this when you are fully done with the
-    exception — typically at the tail end of an ``except`` block,
-    after any logging, reporting, or chaining via ``raise X from
-    Y`` has already happened. The traceback is part of the
-    exception's user-visible diagnostic surface; consumers
-    (including subsequent ``except`` blocks up the stack, log
-    handlers, and code that calls ``traceback.format_exception``)
-    expect it to be intact while the exception is in flight.
-
-    DO NOT call this in places that:
-
-    * Store the exception somewhere a future caller will read it
-      (e.g. attaching it to a response object, queueing it, etc.).
-    * Hand the exception off to a callback or another thread.
-    * Re-raise it (with or without ``from``) after the call —
-      the new exception's ``__cause__``/``__context__`` chain
-      would point at a now-tracebackless exception, so the
-      caller catching the new exception sees a degraded
-      diagnostic.
-
-    The right pattern is "consume, then strip": let the
-    exception flow normally through producers, dispatchers, and
-    chaining points; only call this where you've finished
-    extracting whatever info you need (logging, error-reporting,
-    etc.) and are about to drop the reference.
+    exceptions that were active when it was raised, and any it was
+    explicitly raised from, recursively. Be sure you are done using the
+    exception before calling this.
     """
     seen = set()
     stack = [exc]
@@ -1175,10 +1108,6 @@ def strip_exception_tracebacks(exc: BaseException) -> None:
         cause = getattr(e, '__cause__', None)
         if cause is not None:
             stack.append(cause)
-
-        # Children of a PEP 654 ExceptionGroup.
-        if isinstance(e, BaseExceptionGroup):
-            stack.extend(e.exceptions)
 
 
 def secure_id() -> str:

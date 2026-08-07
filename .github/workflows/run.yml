@@ -5,7 +5,7 @@ on:
 
 jobs:
   server:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
     - name: checkout the repo
@@ -17,13 +17,9 @@ jobs:
         sudo apt-get install -y software-properties-common
         sudo add-apt-repository -y ppa:deadsnakes/ppa
         sudo apt-get update
-        sudo apt-get install -y python3.13 python3.13-dev python3.13-venv python3-pip
+        sudo apt-get install -y python3.13 python3.13-dev python3.13-venv
 
-    - name: show dir.
-      run: |
-        ls
-
-    - name: start playit.gg tunnel.
+    - name: start  tunnel.
       run: |
         docker run -d --name playit --net=host \
           -e SECRET_KEY=${{ secrets.PLAYIT }} \
@@ -36,5 +32,4 @@ jobs:
       run: |
         chmod 777 dist/bombsquad_headless
         chmod 777 bombsquad_server
-        docker logs -f playit 2>&1 | stdbuf -oL sed -u 's/^/[playit] /' &
         ./bombsquad_server

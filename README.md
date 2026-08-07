@@ -1,33 +1,36 @@
-# Bombsquad Server Scripts
-it's a modified version server scripts
-it has a few features and utilities described below.
-- script version: 1.7.63
+# EntityX Bombsquad Server Scripts
+- script version: 1.7.61
+- protocol version: 36 (v1 accounts not allowed.)
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
 [![Discord](https://img.shields.io/badge/Discord-Join%20Chat-7289DA?style=for-the-badge&logo=discord&logoColor=white&labelColor=7289DA)](https://discord.gg/yrYqbSU7wT)
 
-## Features:
-- has important commands
-- tournament system
-- protection (v2 check)
-- session leave/join messages has been removed (note: party messages would still be visible)
-- once a week OTP verification for every player.
+# Installation:
+### Install dependencies
+```
+sudo apt-get update
+sudo apt-get install -y software-properties-common
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt-get update
+sudo apt-get install -y python3.13 python3.13-dev python3.13-venv
+```
+### Clone the repository
+```
+git clone https://github.com/UnKnowNModder/EntityX.git
+```
 
-## Tournament System:
-- it's a tournament system, that uses a different session for matches.
-- the support for adding matches through discord bot will be added soon
-### Features:
-- the participants can simply do /confirm in-game to confirm their presence in the tournament match.
-- once all the participants of a match have been confirmed, the match will begin.
-- if any player lefts in between the tournament match, he'll be given 15 minutes to join back, exceeded the time, the team will be disqualified.
-- once match starts, it can only be stopped by restarting the server (will add other way in upcoming commits).
+- you may now change config.toml to your needs.
 
-# Todo:
-- add support for discord bot
-- refine the tournament system to allow participants to agree on player leaves if they want, overriding the default leave-win system.
+### Assign permissions
+```
+chmod 777 dist/bombsquad_headless
+chmod 777 bombsquad_server
+```
 
+### Run the server.
+```
+tmux
+./bombsquad_server
+```
 
-## Modification?
-- yup, you can modify it and use however you want in your scripts.
-- whether you need to take a bit of idea to copy paste some code, you can do it all.
-- (credit isn't needed just so you know)

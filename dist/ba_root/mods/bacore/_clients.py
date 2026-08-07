@@ -1,7 +1,7 @@
 """client-related utility"""
 
 from __future__ import annotations
-import bascenev1, secrets
+import bascenev1, secrets, ast
 from . import _utils as utils
 from ._enums import Authority
 
@@ -196,13 +196,9 @@ def all_clients() -> list[Client]:
 	for client in bascenev1.get_game_roster()[1:]:
 		client_id = client["client_id"]
 		account_id = client["account_id"]
-		spec_string = eval(client["spec_string"])
+		spec_string = ast.literal_eval(client["spec_string"])
 		name = spec_string["n"]
-		# handle for pc players..
-		if spec_string["a"].lower() == "local" and name.startswith("PC"):
-			is_v2 = True
-		else:
-			is_v2 = spec_string["a"] == "V2"
+		is_v2 = spec_string["a"] == "V2"
 		in_lobby = not client["players"]
 		if not in_lobby:
 			name = client["players"][0]["name"]

@@ -13,6 +13,6 @@ def confirm(client: Client) -> None:
 )
 def list_matches(client: Client):
 	""" lists all the tournament matches. """
-	for match in bacore.tournament.read():
+	for match in tournament.read():
 		message = f"{match['teams'][0]['name']} vs {match['teams'][1]['name']} [series: {match['series']}]"
 		client.send(message, sender=f"{match['id']}")

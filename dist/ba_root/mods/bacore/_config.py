@@ -26,9 +26,7 @@ class Config(Storage):
 	def toggle(self, utility: Utility) -> bool:
 		"""toggles the utility."""
 		config = self.read()
-		if not utility in config:
-			config[utility] = True
-		config[utility] = not config[utility]
+		config[utility] = not config.get(utility, True)
 		self.commit(config)
 		return config[utility]
 
@@ -48,14 +46,10 @@ class Config(Storage):
 	def whitelist(self) -> bool:
 		"""returns whether whitelist is enable or not."""
 		config = self.read()
-		if Utility.WHITELIST not in config:
-			config[Utility.WHITELIST] = False
 		return config[Utility.WHITELIST]
 
 	@property
 	def spectator(self) -> bool:
 		"""returns whether spectator is enable or not."""
 		config = self.read()
-		if Utility.SPECTATOR not in config:
-			config[Utility.SPECTATOR] = True
 		return config[Utility.SPECTATOR]

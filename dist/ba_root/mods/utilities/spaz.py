@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Sequence
 import bascenev1 as bs
 import bacore
-from .utils import replace_method
+from bacore import replace_method
 from bascenev1lib.actor import playerspaz
 
 class Text:

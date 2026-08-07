@@ -174,7 +174,7 @@ class Tournament(Storage):
 				}
 			]
 		}
-		requests.post(WEBHOOK_URL, json=data)
+		requests.post(WEBHOOK_URL, timeout=5, json=data)
 
 	def begin(self) -> None:
 		"""begins the tournament session."""

@@ -9,6 +9,7 @@ class Storage:
 
 	def __init__(self, filename: str, is_dir: bool = False) -> None:
 		self.directory = Path(babase.env()["python_directory_user"]) / "storage"
+		self._cache = {}
 		if is_dir:
 			self.directory = self.directory / filename
 		else:
@@ -18,15 +19,18 @@ class Storage:
 	def read(self, external_path: Optional[Path] = None) -> dict:
 		"""reads the data from the file."""
 		target_path = external_path or self.path
-		try:
-			with target_path.open("r") as f:
-				return json.load(f)
-		except (FileNotFoundError, json.JSONDecodeError):
-			return {}
+		if not self._cache.get(target_path):
+			try:
+				with target_path.open("r") as f:
+					self._cache[target_path] = json.load(f)
+			except (FileNotFoundError, json.JSONDecodeError):
+				return {}
+		return self._cache[target_path]
 
 	def commit(self, data: dict | list, external_path: Optional[Path] = None) -> None:
 		"""commits the data to the file."""
 		target_path = external_path or self.path
 		with target_path.open("w") as f:
+			self._cache[target_path] = data
 			json.dump(data, f, indent=4)
 

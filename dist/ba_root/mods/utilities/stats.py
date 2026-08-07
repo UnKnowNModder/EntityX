@@ -2,16 +2,17 @@
 thanks to smoothy and ankit for their honourable work."""
 from __future__ import annotations
 from bascenev1._activitytypes import ScoreScreenActivity
-from .utils import replace_method
+from bacore import replace_method
 from bascenev1._map import Map
 from commands import on_command
-import bacore, bascenev1, threading, requests
+import bacore, bascenev1, threading
 
 def update_stats(stats: bascenev1.Stats) -> None:
 	""" does what the name says, duh. """
 	rec_scores = {}
 	rec_kills = {}
 	rec_deaths = {}
+	rec_names = {}
 	for record in stats.get_records().values():
 		player = record.player
 		if not player: continue
@@ -23,8 +24,9 @@ def update_stats(stats: bascenev1.Stats) -> None:
 			rec_kills[account_id] += record.accum_kill_count
 			rec_deaths.setdefault(account_id, 0)
 			rec_deaths[account_id] += record.accum_killed_count
+			rec_names.setdefault(account_id, player.getname(True, True))
 	if rec_scores:
-		RefreshStats(rec_scores, rec_kills, rec_deaths).start() # to decrease load, we run a thread to be safe.
+		RefreshStats(rec_scores, rec_kills, rec_deaths, rec_names).start() # to decrease load, we run a thread to be safe.
 
 @replace_method(ScoreScreenActivity, "on_begin", initial = True)
 def new_on_begin(self) -> None:
@@ -41,11 +43,12 @@ def new_map_init(*args, **kwargs):
 
 class RefreshStats(threading.Thread):
 	""" refreshes and sorts the stats for rank. """
-	def __init__(self, scores, kills, deaths) -> None:
+	def __init__(self, scores, kills, deaths, names) -> None:
 		super().__init__()
 		self.scores = scores
 		self.kills = kills
 		self.deaths = deaths
+		self.names = names
 	
 	def run(self) -> None:
 		stats = bacore.stats.read()
@@ -68,15 +71,10 @@ class RefreshStats(threading.Thread):
 		bacore.stats.sort()
 	
 	def get_account_name(self, account_id: str) -> None:
-		try:
-			url = f"http://bombsquadgame.com/bsAccountInfo?buildNumber=20258&accountID={account_id}"
-			response = requests.get(url).json()
-			return response["profileDisplayString"]
-		except:
-			return "??"
+		return self.names.get(account_id, "??")
 	
 @on_command(name="/stats")
-def show_stats(client: Client) -> None:
+def show_stats(client: bacore.Client) -> None:
 	"""shows the client his stats."""
 	if stats := bacore.stats.get(client.account_id):
 		message = "{} | score: {} | kills: {} | deaths: {} | games: {}".format(stats["rank"], stats["score"], stats["kills"], stats["deaths"], stats["games"])

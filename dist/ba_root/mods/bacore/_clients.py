@@ -1,7 +1,7 @@
 """client-related utility"""
 
 from __future__ import annotations
-import bascenev1, secrets, ast
+import bascenev1, secrets
 from . import _utils as utils
 from ._enums import Authority
 
@@ -18,13 +18,11 @@ class Client:
 		client_id: int = 0,
 		account_id: str = "",
 		name: str = "",
-		is_v2: bool = True,
 		in_lobby: bool = True,
 	) -> None:
 		self.client_id = client_id
 		self.account_id = account_id
 		self.name = name
-		self.is_v2 = is_v2
 		self.in_lobby = in_lobby
 
 	@property
@@ -196,15 +194,12 @@ def all_clients() -> list[Client]:
 	for client in bascenev1.get_game_roster()[1:]:
 		client_id = client["client_id"]
 		account_id = client["account_id"]
-		spec_string = ast.literal_eval(client["spec_string"])
-		name = spec_string["n"]
-		is_v2 = spec_string["a"] == "V2"
 		in_lobby = not client["players"]
 		if not in_lobby:
 			name = client["players"][0]["name"]
 		else:
 			name = client["display_string"]
-		clients.append(Client(client_id, account_id, name, is_v2, in_lobby))
+		clients.append(Client(client_id, account_id, name, in_lobby))
 	return clients
 
 

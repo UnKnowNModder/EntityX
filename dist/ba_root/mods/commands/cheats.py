@@ -21,18 +21,18 @@ def thaw_player(client: Client, player: Player):
 	player.thaw()
 
 @on_command(name="/killall", authority=Authority.ADMIN)
-def kill_player(client: Client, players: Players):
+def kill_all_players(client: Client, players: Players):
 	"""Kill target player"""
 	players.kill()
 
 
 @on_command(name="/freezeall", authority=Authority.ADMIN)
-def freeze_player(client: Client, players: Players):
+def freeze_all_players(client: Client, players: Players):
 	"""Freeze target player"""
 	players.freeze()
 
 
 @on_command(name="/thawall", authority=Authority.ADMIN)
-def thaw_player(client: Client, players: Players):
+def thaw_all_players(client: Client, players: Players):
 	"""thaw the freezed target player"""
 	players.thaw()

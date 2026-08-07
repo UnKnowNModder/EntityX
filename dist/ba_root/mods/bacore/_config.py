@@ -1,6 +1,7 @@
 """ config storage core. """
 from __future__ import annotations
 from pathlib import Path
+import re
 from ._storage import Storage
 from ._enums import Utility, Playlist
 
@@ -33,14 +34,15 @@ class Config(Storage):
 	def set_playlist(self, playlist: Playlist) -> None:
 		"""changes the playlist code in .toml file."""
 		code = playlist.value
-		with self.toml.open("r") as f:
-			lines = f.readlines()
-		with self.toml.open("w") as f:
-			for line in lines:
-				if line.strip().startswith(f"playlist_code ="):
-					f.write(f"playlist_code = {code}\n")
-				else:
-					f.write(line)
+		content = self.toml.read_text(encoding="utf-8")
+		# match with regex.
+		pattern = r"^(playlist_code\s*=\s*)[^\r\n#]+"
+		new_content = re.sub(pattern, fr"\g<1>{code}", content, flags=re.MULTILINE)
+		# store to temp file first.
+		temp_file = self.toml.with_suffix(".toml.tmp")
+		temp_file.write_text(new_content, encoding="utf-8")
+		# replace with oriignal safely.
+		temp_file.replace(self.toml)
 
 	@property
 	def whitelist(self) -> bool:

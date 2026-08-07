@@ -4,7 +4,7 @@ though I'm not unwanted :D (hope so)
 
 from __future__ import annotations
 from bacore import Client
-from .utils import replace_method
+from bacore import replace_method
 import bacore, bascenev1, babase
 
 @replace_method(bascenev1._session.Session, "on_player_request", initial = True)
@@ -42,10 +42,6 @@ class Protector:
 			if client.authority:
 				# no checks against authority.
 				continue
-			# Inspect: is client v2?
-			if not client.is_v2:
-				client.kick()
-				continue
 
 			# blacklist
 			if roles.has_role(bacore.Role.BANLIST, client.account_id):
@@ -58,11 +54,10 @@ class Protector:
 				client.error(f"{client.name}, you are not in whitelist..")
 				client.kick()
 		if not config.spectator:
-			self.handle_lobby_afk()
+			self.handle_lobby_afk(clients)
 
-	def handle_lobby_afk(self):
+	def handle_lobby_afk(self, clients: list[Client]):
 		"""handles afk lobby players.."""
-		clients = bacore.all_clients()
 		for client in clients:
 			# lobby afk
 			client_id = client.client_id

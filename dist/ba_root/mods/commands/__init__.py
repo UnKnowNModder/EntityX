@@ -3,7 +3,7 @@
 # thanks to snoweee for enlightening me with decorators <3
 from __future__ import annotations
 from bacore import Authority, Players, Client, fetch_client, fetch_player
-import importlib, babase, inspect
+import importlib, babase, inspect, traceback
 from pathlib import Path
 
 _commands = {}
@@ -61,8 +61,8 @@ def command_line(msg: str, client: Client) -> str | None:
 					function(client, args[0])
 				else:
 					function(client)
-			except Exception as err:
-				print("err:", err)
+			except:
+				print(traceback.format_exc())
 				client.error(f"Usage: {cmd['usage']}")
 			return
 	# wasn't any known command.

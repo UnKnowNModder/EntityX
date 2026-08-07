@@ -33,8 +33,8 @@ class Utility(StrEnum):
 class Playlist(IntEnum):
 	"""enum class for playlists."""
 
-	TEAMS = 531064
-	FFA = 531063
+	TEAMS = 617192
+	FFA = 617193
 
 class Team(TypedDict):
 	""" team type for tournament. """

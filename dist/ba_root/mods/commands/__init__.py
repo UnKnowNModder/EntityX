@@ -42,7 +42,11 @@ def command_line(msg: str, client: Client) -> str | None:
 			sign = inspect.signature(function)
 			params = [param for param in sign.parameters]
 			try:
-				if "args" in params:
+				if "message" in params and "target" in params:
+					message = " ".join(args[1:])
+					target = fetch_client(args[0])
+					function(client, target, message)
+				elif "args" in params:
 					function(client, args)
 				elif "target" in params:
 					target = fetch_client(args[0])

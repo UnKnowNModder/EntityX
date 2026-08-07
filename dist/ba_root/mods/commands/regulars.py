@@ -27,9 +27,8 @@ def show_account_id(client: Client, target: Client):
 
 
 @on_command(name="/pm", aliases=["/dm"], usage="/pm <client id> <message>")
-def private_message(client: Client, target: Client):
+def private_message(client: Client, target: Client, message: str):
 	"""Sends a private message to target client."""
-	message = " ".join(args[1:])
 	name = f"{client.name} (pvt)"
 	target.send(message, sender=name)
 	client.send(message, sender=name)

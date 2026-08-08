@@ -1,7 +1,7 @@
 """ stats storage core. """
 from __future__ import annotations
 from ._storage import Storage
-import bascenev1 as bs
+import bascenev1
 
 class Stats(Storage):
 	"""stats storage class."""
@@ -9,7 +9,6 @@ class Stats(Storage):
 	def __init__(self) -> None:
 		super().__init__("stats.json")
 		self.top = []
-		self.bootstrap()
 
 	def bootstrap(self) -> None:
 		"""creates essential files."""
@@ -40,16 +39,17 @@ class Stats(Storage):
 			sorted_stats[account_id] = data
 		self.commit(sorted_stats)
 	
-	def leaderboard(self) -> None:
+	def leaderboard(self, owner: bascenev1.Node | None) -> None:
 		""" leaderboard for top rankers. """
 		y_pos = -80
 		for rank, name in enumerate(self.top, start = 1):
 			# image node
-			self.image = bs.newnode(
+			self.image = bascenev1.newnode(
 				"image",
+				owner = owner,
 				attrs = {
 					"scale": (300, 30),
-					"texture": bs.gettexture("uiAtlas2"),
+					"texture": bascenev1.gettexture("uiAtlas2"),
 					"position": (0, y_pos),
 					"attach": "topRight",
 					"opacity": 0.5,
@@ -58,8 +58,9 @@ class Stats(Storage):
 			)
 			
 			# text node
-			self.text = bs.newnode(
+			self.text = bascenev1.newnode(
 				"text",
+				owner = owner,
 				attrs = {
 					"text": f"#{rank} " + name[:10] + "..",
 					'flatness': 1.0,
@@ -74,4 +75,5 @@ class Stats(Storage):
 			)
 			y_pos -= 35
 
-			
+
+stats = Stats()

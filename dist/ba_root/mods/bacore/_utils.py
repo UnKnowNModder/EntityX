@@ -35,14 +35,15 @@ def replace_method(module, func_name: str, initial: bool = False):
         raise TypeError(f"Attribute '{func_name}' in '{module.__name__}' is not callable")
 
     def decorator(new_func):
+        sign = signature(new_func)
+        has_og_result = "og_result" in sign.parameters
+
         @wraps(original_func)
         def wrapper(*args, **kwargs) -> Any:
             if initial:
                 # if this is true, we'll call the original function initially.
                 result = original_func(*args, **kwargs)
-                sign = signature(new_func)
-                params = [param for param in sign.parameters]
-                if "og_result" in params:
+                if has_og_result:
                     return new_func(*args, **kwargs, og_result=result)
             return new_func(*args, **kwargs)
 

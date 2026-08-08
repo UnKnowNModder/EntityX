@@ -19,7 +19,7 @@ class Storage:
 	def read(self, external_path: Optional[Path] = None) -> dict:
 		"""reads the data from the file."""
 		target_path = external_path or self.path
-		if not self._cache.get(target_path):
+		if target_path not in self._cache:
 			try:
 				with target_path.open("r") as f:
 					self._cache[target_path] = json.load(f)

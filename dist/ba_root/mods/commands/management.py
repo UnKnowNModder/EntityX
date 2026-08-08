@@ -41,13 +41,16 @@ def show_profiles(client: Client, player: Player):
 @on_command(name="/say", authority=Authority.ADMIN, usage="/say <message>")
 def server_say(client: Client, args: list[str]):
 	"""Makes the server say a message."""
-	if args[0].startswith("<"):
-		# eweheheh some fun.
-		client_id = int(args[0].split("<")[1].split(">")[0])
-		target = fetch_client(client_id)
-		message = " ".join(args[1:])
-		send(message, sender=target.name)
-		return
+	try:
+		if args[0].startswith("<"):
+			# eweheheh some fun.
+			client_id = int(args[0].split("<")[1].split(">")[0])
+			target = fetch_client(client_id)
+			message = " ".join(args[1:])
+			send(message, sender=target.name)
+			return
+	except (KeyError, ValueError):
+		pass
 	message = " ".join(args)
 	send(message)
 

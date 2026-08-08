@@ -11,7 +11,6 @@ class Config(Storage):
 	def __init__(self) -> None:
 		super().__init__("config.json")
 		self.toml = self.directory.parents[3] / "config.toml"
-		self.bootstrap()
 
 	def bootstrap(self) -> None:
 		"""creates essential files."""
@@ -55,3 +54,5 @@ class Config(Storage):
 		"""returns whether spectator is enable or not."""
 		config = self.read()
 		return config[Utility.SPECTATOR]
+
+config = Config()

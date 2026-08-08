@@ -36,10 +36,10 @@ def new_on_begin(self) -> None:
 		update_stats(self._stats)
 
 @replace_method(Map, "__init__", initial = True)
-def new_map_init(*args, **kwargs):
+def new_map_init(self, *args, **kwargs):
 	config = bacore.config.read()
 	if config["stats"]["enable"] and config["stats"]["leaderboard"]:
-		bacore.stats.leaderboard()
+		bacore.stats.leaderboard(self.node)
 
 class RefreshStats(threading.Thread):
 	""" refreshes and sorts the stats for rank. """

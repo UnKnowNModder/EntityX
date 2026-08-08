@@ -1,17 +1,17 @@
 """ modified spaz functionality. """
 from __future__ import annotations
 from typing import Sequence
-import bascenev1 as bs
+import bascenev1
 import bacore
 from bacore import replace_method
 from bascenev1lib.actor import playerspaz
 
 class Text:
 	""" text which spawns on the node's head. """
-	def __init__(self, node: bs.Node, text: str) -> None:
+	def __init__(self, node: bascenev1.Node, text: str) -> None:
 		color = (1, 1, 1) # default
 		self.node = node
-		math = bs.newnode(
+		math = bascenev1.newnode(
 			"math", 
 			owner = self.node,
 			attrs = {
@@ -21,7 +21,7 @@ class Text:
 		)
 		self.node.connectattr("torso_position", math, "input2")
 		
-		self.text = bs.newnode(
+		self.text = bascenev1.newnode(
 			"text",
 			owner = self.node,
 			attrs = {
@@ -35,9 +35,9 @@ class Text:
 			}
 		)
 		math.connectattr("output", self.text, "position")
-		# bs.animate_array(self.text, "scale", {0: 0.0, 1: 0.01})
+		# bascenev1.animate_array(self.text, "scale", {0: 0.0, 1: 0.01})
 		
-def attach_rank(self, player: bs.Player) -> None:
+def attach_rank(self, player: bascenev1.Player) -> None:
 	""" attaches the rank on player head. """
 	if player and player.sessionplayer:
 		account_id = player.sessionplayer.get_account_id()
@@ -48,7 +48,7 @@ def attach_rank(self, player: bs.Player) -> None:
 
 
 @replace_method(playerspaz.PlayerSpaz, "__init__", initial = True)
-def new_init(self,player: bs.Player,*,color: Sequence[float] = (1.0, 1.0, 1.0),highlight: Sequence[float] = (0.5, 0.5, 0.5),character: str = "Spaz",powerups_expire: bool = True):
+def new_init(self,player: bascenev1.Player,*,color: Sequence[float] = (1.0, 1.0, 1.0),highlight: Sequence[float] = (0.5, 0.5, 0.5),character: str = "Spaz",powerups_expire: bool = True):
 	""" modified constructor of PlayerSpaz class. """
 	config = bacore.config.read()
 	if config["stats"]["enable"]:

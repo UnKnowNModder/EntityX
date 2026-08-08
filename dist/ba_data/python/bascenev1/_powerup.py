@@ -52,6 +52,6 @@ def get_default_powerup_distribution() -> Sequence[tuple[str, int]]:
         ('land_mines', 2),
         ('sticky_bombs', 3),
         ('shield', 0),
-        ('health', 1),
+        ('health', 0),
         ('curse', 0),
     )

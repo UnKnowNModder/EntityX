@@ -10,7 +10,6 @@ class Roles(Storage):
 	def __init__(self) -> None:
 		super().__init__("roles.json")
 		self.auth = self.directory / "auth.json"
-		self.bootstrap()
 
 	def bootstrap(self) -> None:
 		"""creates essential files."""
@@ -95,3 +94,5 @@ class Roles(Storage):
 		this is handled by OTPs. """
 		auth = self.read(self.auth)
 		return account_id in auth["authentic"]
+
+roles = Roles()

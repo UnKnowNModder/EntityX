@@ -16,7 +16,6 @@ class Tournament(Storage):
 		self.results = self.directory / "results.json"
 		self.registration = self.directory / "registrations.json"
 		self.match: Match = {}
-		self.bootstrap()
 
 	def bootstrap(self) -> None:
 		"""creates tournament file."""
@@ -184,4 +183,5 @@ class Tournament(Storage):
 		with session.context:
 			session.setactivity(bascenev1.newactivity(TournamentTransitionActivity))
 		
-		
+
+tournament = Tournament()

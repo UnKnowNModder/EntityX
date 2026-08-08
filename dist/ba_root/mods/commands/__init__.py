@@ -69,7 +69,7 @@ def command_line(msg: str, client: Client) -> str | None:
 	# wasn't any known command.
 	return msg
 
-@replace_method(bascenev1, "filter_chat_message")
+@replace_method(bascenev1._hooks, "filter_chat_message")
 def control_message(msg: str, client_id: int) -> str | None:
 	""" controls the message for filters/commands. """
 	client = Client(client_id) if client_id == -1 else fetch_client(client_id)

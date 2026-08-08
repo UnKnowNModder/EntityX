@@ -42,6 +42,7 @@ import weakref
 from bascenev1._lobby import ChangeMessage, PlayerReadyMessage
 from bascenev1 import _lobby
 from bascenev1lib.actor.spazappearance import *
+import bascenev1
 
 
 def __init__(self, vpos: float, sessionplayer: bascenev1.SessionPlayer,

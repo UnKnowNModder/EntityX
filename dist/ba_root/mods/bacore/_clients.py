@@ -79,7 +79,6 @@ class Client:
 			return self.account_id in tournament.match["confirmed"]
 		return False
 
-	@property
 	def ping(self) -> float:
 		""" returns the client's ping """
 		return bascenev1.get_client_ping(self.client_id)

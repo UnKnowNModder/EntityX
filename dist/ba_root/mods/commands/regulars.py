@@ -45,7 +45,7 @@ def private_message(client: Client, target: Client, message: str):
 @on_command(name="/ping", aliases=["/ms"])
 def show_ping(client: Client):
 	"""shows the client's ping"""
-	message = "Your ping: {}ms".format(client.ping)
+	message = "Your ping: {}".format(client.ping())
 	client.send(message)
 
 @on_command(name="/pingall", aliases=["/msall"])
@@ -53,4 +53,4 @@ def show_all_pings(client: Client):
 	"""shows all the connected clients' ping"""
 	text_format = "{}'s ping: {}"
 	for _client in all_clients:
-		client.send(text_format.format(_client.name, _client.ping))
+		client.send(text_format.format(_client.name, _client.ping()))

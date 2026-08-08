@@ -53,3 +53,17 @@ def new_init(self,player: bascenev1.Player,*,color: Sequence[float] = (1.0, 1.0,
 	config = bacore.config.read()
 	if config["stats"]["enable"]:
 		attach_rank(self, player)
+
+@replace_method(bascenev1, "get_default_powerup_distribution")
+def powerup_distribution() -> Sequence[tuple[str, int]]:
+	return (
+		('triple_bombs', 3),
+		('ice_bombs', 3),
+		('punch', 0),
+		('impact_bombs', 3),
+		('land_mines', 2),
+		('sticky_bombs', 3),
+		('shield', 0),
+		('health', 0),
+		('curse', 0),
+	)

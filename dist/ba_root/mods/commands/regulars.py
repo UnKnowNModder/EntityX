@@ -1,7 +1,7 @@
 """ regular commands. """
 from __future__ import annotations
 from . import on_command
-from bacore import Client, all_clients
+from bacore import Client, all_clients, stats
 import bascenev1
 
 @on_command(name="/list", aliases=["/ls"])
@@ -18,6 +18,15 @@ def list(client: Client):
 			string += heads.format(i["display_string"], i["client_id"], "<in lobby>")
 	client.success(string)
 
+@on_command(name="/stats")
+def show_stats(client: bacore.Client) -> None:
+	"""shows the client his stats."""
+	if stats := stats.get(client.account_id):
+		message = "{} | score: {} | kills: {} | deaths: {} | games: {}".format(stats["rank"], stats["score"], stats["kills"], stats["deaths"], stats["games"])
+		client.send(message, sender = "rank")
+		return
+	client.error("Your stats will be available soon.")
+
 
 @on_command(name="/pb", aliases=["/ac", "/id"])
 def show_account_id(client: Client, target: Client):
@@ -32,3 +41,16 @@ def private_message(client: Client, target: Client, message: str):
 	name = f"{client.name} (pvt)"
 	target.send(message, sender=name)
 	client.send(message, sender=name)
+
+@on_command(name="/ping", aliases=["/ms"])
+def show_ping(client: Client):
+	"""shows the client's ping"""
+	message = "Your ping: {}ms".format(client.ping)
+	client.send(message)
+
+@on_command(name="/pingall", aliases=["/msall"])
+def show_all_pings(client: Client):
+	"""shows all the connected clients' ping"""
+	text_format = "{}'s ping: {}"
+	for _client in all_clients:
+		client.send(text_format.format(_client.name, _client.ping))

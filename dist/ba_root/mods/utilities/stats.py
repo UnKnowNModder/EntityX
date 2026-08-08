@@ -4,7 +4,6 @@ from __future__ import annotations
 from bascenev1._activitytypes import ScoreScreenActivity
 from bacore import replace_method
 from bascenev1._map import Map
-from commands import on_command
 import bacore, bascenev1, threading
 
 def update_stats(stats: bascenev1.Stats) -> None:
@@ -56,7 +55,7 @@ class RefreshStats(threading.Thread):
 			if account_id not in stats:
 				# this user is new, we need to register him.
 				stats[account_id] = {
-					"name": self.get_account_name(account_id),
+					"name": self.names.get(account_id, "??"),
 					"score": 0,
 					"kills": 0,
 					"deaths": 0,
@@ -70,15 +69,4 @@ class RefreshStats(threading.Thread):
 		# sort the stats
 		bacore.stats.sort()
 	
-	def get_account_name(self, account_id: str) -> None:
-		return self.names.get(account_id, "??")
-	
-@on_command(name="/stats")
-def show_stats(client: bacore.Client) -> None:
-	"""shows the client his stats."""
-	if stats := bacore.stats.get(client.account_id):
-		message = "{} | score: {} | kills: {} | deaths: {} | games: {}".format(stats["rank"], stats["score"], stats["kills"], stats["deaths"], stats["games"])
-		client.send(message, sender = "rank")
-		return
-	client.error("Your stats will be available soon.")
 

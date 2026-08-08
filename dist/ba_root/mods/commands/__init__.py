@@ -2,11 +2,29 @@
 # ba_meta require api 9
 # thanks to snoweee for enlightening me with decorators <3
 from __future__ import annotations
-from bacore import Authority, Players, Client, fetch_client, fetch_player
-import importlib, babase, inspect, traceback
+from bacore import Authority, Players, Client, fetch_client, fetch_player, replace_method
+import importlib, babase, inspect, traceback, bascenev1
 from pathlib import Path
 
 _commands = {}
+
+def _get_arguments_mapper(parameters: list[str]) -> callable:
+	"""returns a callable with the parameters requested."""
+	if len(parameters) == 1:
+		return lambda client, args: (client,)
+
+	if "message" in parameters and "target" in parameters:
+		return lambda client, args: (client, fetch_client(args[0]), " ".join(args[1:]))
+
+	mappers: dict[callable] = {
+		"args": lambda client, args: (client, args),
+        "players": lambda client, args: (client, Players()),
+        "account_id": lambda client, args: (client, args[0]),
+        "target": lambda client, args: (client, fetch_client(args[0])),
+        "player": lambda client, args: (client, fetch_player(args[0])),
+	}
+
+	return mappers.get(parameters[1], lambda client, args: (client,))
 
 
 def on_command(
@@ -18,7 +36,8 @@ def on_command(
 	"""decorator to register a command."""
 
 	def decorator(function):
-		cmd = {"call": function, "authority": authority, "usage": usage}
+		parameters = list(inspect.signature(function).parameters.keys())
+		cmd = {"function": function, "authority": authority, "usage": usage, "mapper": _get_arguments_mapper(parameters=parameters)}
 		_commands[name] = cmd
 		if aliases:
 			for aliase in aliases:
@@ -38,29 +57,11 @@ def command_line(msg: str, client: Client) -> str | None:
 	if command in _commands:
 		cmd = _commands[command]
 		if client.authority >= cmd["authority"]:
-			function = cmd["call"]
-			sign = inspect.signature(function)
-			params = [param for param in sign.parameters]
+			function = cmd["function"]
 			try:
-				if "message" in params and "target" in params:
-					message = " ".join(args[1:])
-					target = fetch_client(args[0])
-					function(client, target, message)
-				elif "args" in params:
-					function(client, args)
-				elif "target" in params:
-					target = fetch_client(args[0])
-					function(client, target)
-				elif "player" in params:
-					player = fetch_player(args[0])
-					function(client, player)
-				elif "players" in params:
-					players = Players()
-					function(client, players)
-				elif "account_id" in params:
-					function(client, args[0])
-				else:
-					function(client)
+				mapper = cmd["mapper"]
+				function_arguments = mapper(client, args)
+				function(*function_arguments)
 			except:
 				print(traceback.format_exc())
 				client.error(f"Usage: {cmd['usage']}")
@@ -68,7 +69,8 @@ def command_line(msg: str, client: Client) -> str | None:
 	# wasn't any known command.
 	return msg
 
-def control_message(msg: str, client_id: int) -> bool:
+@replace_method(bascenev1, "filter_chat_message")
+def control_message(msg: str, client_id: int) -> str | None:
 	""" controls the message for filters/commands. """
 	client = Client(client_id) if client_id == -1 else fetch_client(client_id)
 	if client and msg:
@@ -99,4 +101,5 @@ def _load_commands():
 class Load(babase.Plugin):
 	def __init__(self) -> None:
 		_load_commands()
+		bascenev1.reload_hooks()
 		print("✅ Loaded commands. ")

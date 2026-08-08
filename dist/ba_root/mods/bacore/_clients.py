@@ -80,6 +80,11 @@ class Client:
 		return False
 
 	@property
+	def ping(self) -> float:
+		""" returns the client's ping """
+		return bascenev1.get_client_ping(self.client_id)
+
+	@property
 	def is_mute(self) -> bool:
 		"""returns whether the client is mute or not."""
 		return self.account_id in Client.__mute_clients

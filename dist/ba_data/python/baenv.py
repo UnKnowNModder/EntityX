@@ -57,7 +57,7 @@ logger = logging.getLogger('ba.env')
 
 # Build number and version of the ballistica binary we expect to be
 # using.
-TARGET_BALLISTICA_BUILD = 22764
+TARGET_BALLISTICA_BUILD = 22767
 TARGET_BALLISTICA_VERSION = '1.7.61'
 
 
@@ -485,9 +485,9 @@ def _setup_paths(
 
     data_dir = _calc_data_dir(data_dir)
 
-    # Default config-dir is simply ~/.bombsquad
+    # Default config-dir is simply ~/.ballisticakit
     if config_dir is None:
-        config_dir = str(Path(Path.home(), '.bombsquad'))
+        config_dir = str(Path(Path.home(), '.ballisticakit'))
 
     # By default, cache-dir is simply 'cache' under config-dir.
     if cache_dir is None:

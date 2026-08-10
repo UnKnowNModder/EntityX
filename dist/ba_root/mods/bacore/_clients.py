@@ -79,9 +79,10 @@ class Client:
 			return self.account_id in tournament.match["confirmed"]
 		return False
 
-	def ping(self) -> float:
+	@property
+	def ping(self) -> int:
 		""" returns the client's ping """
-		return bascenev1.get_client_ping(self.client_id)
+		return int(bascenev1.get_client_ping(self.client_id))
 
 	@property
 	def is_mute(self) -> bool:
@@ -114,7 +115,7 @@ class Client:
 		"""show this client an error message."""
 		utils.error(message, clients=[self.client_id])
 
-	def send(self, message: str, sender: str | None) -> None:
+	def send(self, message: str, sender: str | None = None) -> None:
 		"""show this client a chat message."""
 		utils.send(message, clients=[self.client_id], sender=sender)
 

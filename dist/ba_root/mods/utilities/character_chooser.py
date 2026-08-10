@@ -42,23 +42,22 @@ import weakref
 from bascenev1._lobby import ChangeMessage, PlayerReadyMessage
 from bascenev1 import _lobby
 from bascenev1lib.actor.spazappearance import *
-import bascenev1
 
 
-def __init__(self, vpos: float, sessionplayer: bascenev1.SessionPlayer,
+def __init__(self, vpos: float, sessionplayer: bs.SessionPlayer,
              lobby: 'Lobby') -> None:
-    self._deek_sound = bascenev1.getsound('deek')
-    self._click_sound = bascenev1.getsound('click01')
-    self._punchsound = bascenev1.getsound('punch01')
-    self._swish_sound = bascenev1.getsound('punchSwish')
-    self._errorsound = bascenev1.getsound('error')
-    self._mask_texture = bascenev1.gettexture('characterIconMask')
+    self._deek_sound = bs.getsound('deek')
+    self._click_sound = bs.getsound('click01')
+    self._punchsound = bs.getsound('punch01')
+    self._swish_sound = bs.getsound('punchSwish')
+    self._errorsound = bs.getsound('error')
+    self._mask_texture = bs.gettexture('characterIconMask')
     self._vpos = vpos
     self._lobby = weakref.ref(lobby)
     self._sessionplayer = sessionplayer
     self._inited = False
     self._dead = False
-    self._text_node: Optional[bascenev1.Node] = None
+    self._text_node: Optional[bs.Node] = None
     self._profilename = ''
     self._profilenames: List[str] = []
     self._ready: bool = False
@@ -76,7 +75,7 @@ def __init__(self, vpos: float, sessionplayer: bascenev1.SessionPlayer,
     # Load available player profiles either from the local config or
     # from the remote device.
     self.reload_profiles()
-    for name in bascenev1.app.classic.spaz_appearances:
+    for name in bs.app.classic.spaz_appearances:
         if name not in self._character_names and name not in self.bakwas_chars:
             self._character_names.append(name)
     # Note: this is just our local index out of available teams; *not*
@@ -88,7 +87,7 @@ def __init__(self, vpos: float, sessionplayer: bascenev1.SessionPlayer,
     # it. This will give a persistent character for them between games
     # and will distribute characters nicely if everyone is random.
     self._random_color, self._random_highlight = (
-        bascenev1.get_player_profile_colors(None))
+        bs.get_player_profile_colors(None))
 
     # To calc our random character we pick a random one out of our
     # unlocked list and then locate that character's index in the full
@@ -103,7 +102,7 @@ def __init__(self, vpos: float, sessionplayer: bascenev1.SessionPlayer,
     self._profileindex = self._select_initial_profile()
     self._profilename = self._profilenames[self._profileindex]
 
-    self._text_node = bascenev1.newnode('text',
+    self._text_node = bs.newnode('text',
                                  delegate=self,
                                  attrs={
                                      'position': (-100, self._vpos),
@@ -114,8 +113,8 @@ def __init__(self, vpos: float, sessionplayer: bascenev1.SessionPlayer,
                                      'v_align': 'center',
                                      'v_attach': 'top'
                                  })
-    bascenev1.animate(self._text_node, 'scale', {0: 0, 0.1: 1.0})
-    self.icon = bascenev1.newnode('image',
+    bs.animate(self._text_node, 'scale', {0: 0, 0.1: 1.0})
+    self.icon = bs.newnode('image',
                            owner=self._text_node,
                            attrs={
                                'position': (-130, self._vpos + 20),
@@ -124,7 +123,7 @@ def __init__(self, vpos: float, sessionplayer: bascenev1.SessionPlayer,
                                'attach': 'topCenter'
                            })
 
-    bascenev1.animate_array(self.icon, 'scale', 2, {0: (0, 0), 0.1: (45, 45)})
+    bs.animate_array(self.icon, 'scale', 2, {0: (0, 0), 0.1: (45, 45)})
 
     # Set our initial name to '<choosing player>' in case anyone asks.
     self._sessionplayer.setname(
@@ -235,7 +234,7 @@ def _set_ready(self, ready: bool) -> None:
     else:
 
         # Inform the session that this player is ready.
-        bascenev1.getsession().handlemessage(PlayerReadyMessage(self))
+        bs.getsession().handlemessage(PlayerReadyMessage(self))
 
 
 def handlemessage(self, msg: Any) -> Any:
@@ -308,13 +307,13 @@ def _update_text(self) -> None:
         text = Lstr(value=self._sessionplayer.getname(full=True))
         if self.characterchooser:
             text = Lstr(value='${A}\n${B}',
-                        subascenev1=[('${A}', text),
+                        subs=[('${A}', text),
                               ('${B}', Lstr(value="" + self._character_names[
                                   self._character_index]))])
             self._text_node.scale = 0.8
         else:
             text = Lstr(value='${A} (${B})',
-                        subascenev1=[('${A}', text),
+                        subs=[('${A}', text),
                               ('${B}', Lstr(resource='readyText'))])
     else:
         text = Lstr(value=self._getname(full=True))
@@ -325,7 +324,7 @@ def _update_text(self) -> None:
     # Flash as we're coming in.
     fin_color = _babase.safecolor(self.get_color()) + (1,)
     if not self._inited:
-        bascenev1.animate_array(self._text_node, 'color', 4, {
+        bs.animate_array(self._text_node, 'color', 4, {
             0.15: fin_color,
             0.25: (2, 2, 2, 1),
             0.35: fin_color
@@ -334,7 +333,7 @@ def _update_text(self) -> None:
 
         # Blend if we're in teams mode; switch instantly otherwise.
         if can_switch_teams:
-            bascenev1.animate_array(self._text_node, 'color', 4, {
+            bs.animate_array(self._text_node, 'color', 4, {
                 0: self._text_node.color,
                 0.1: fin_color
             })

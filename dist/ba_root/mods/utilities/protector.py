@@ -16,6 +16,11 @@ def on_player_request(self, player: bascenev1.SessionPlayer, og_result) -> bool:
 		return False
 	return og_result
 
+@replace_method(bascenev1._hooks, "on_client_joined")
+def on_client_joined(client_id: int) -> None:
+	client = bacore.fetch_client(client_id)
+	print(f"{client.name} Joined the server (Addr: {client.address}, uuid: {client.public_uuid})")
+
 class Protector:
 	"""somewhat fishy name.."""
 

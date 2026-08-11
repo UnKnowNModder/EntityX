@@ -1,7 +1,7 @@
 """client-related utility"""
 
 from __future__ import annotations
-import bascenev1, secrets
+import bascenev1, secrets, _bascenev1
 from . import _utils as utils
 from ._enums import Authority
 
@@ -83,6 +83,16 @@ class Client:
 	def ping(self) -> int:
 		""" returns the client's ping """
 		return int(bascenev1.get_client_ping(self.client_id))
+
+	@property
+	def address(self) -> str:
+		""" returns the client's ip-address"""
+		return _bascenev1.get_client_ip(self.client_id)
+
+	@property
+	def public_uuid(self) -> str:
+		""" returns the client's public device uuid"""
+		return _bascenev1.get_client_public_device_uuid(self.client_id)
 
 	@property
 	def is_mute(self) -> bool:

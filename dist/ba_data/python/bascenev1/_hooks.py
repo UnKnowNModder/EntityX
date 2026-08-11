@@ -33,6 +33,9 @@ def get_player_icon(sessionplayer: bascenev1.SessionPlayer) -> dict[str, Any]:
         'tint2_color': info['tint2_color'],
     }
 
+def on_client_joined(client_id: int) -> None:
+    """ Called when a client joins the server party. """
+    del client_id
 
 def filter_chat_message(msg: str, client_id: int) -> str | None:
     """Intercept/filter chat messages.

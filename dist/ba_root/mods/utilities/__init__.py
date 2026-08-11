@@ -1,6 +1,6 @@
 """ utilities loader plugin. """
 # ba_meta require api 9
-import babase, importlib
+import babase, importlib, bascenev1
 from pathlib import Path
 from .tournament import TournamentTransitionActivity
 
@@ -18,7 +18,8 @@ def _load_utilities():
 
 # ba_meta export babase.Plugin
 class Execute(babase.Plugin):
-	def __init__(self) -> None:
-		""" called on app running. """
-		_load_utilities()
-		print("✅ Loaded utilities.")
+    def __init__(self) -> None:
+        """ called on app running. """
+        _load_utilities()
+        bascenev1.reload_hooks()
+        print("✅ Loaded utilities.")

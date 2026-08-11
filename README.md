@@ -1,6 +1,6 @@
 # EntityX Bombsquad Server Scripts
 - script version: 1.7.61
-- protocol version: 36 (v1 accounts not allowed.)
+- protocol version: 36 (game versions below script version won't be allowed to join)
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
@@ -22,10 +22,9 @@ git clone https://github.com/UnKnowNModder/EntityX.git
 
 - you may now change config.toml to your needs.
 
-### Assign permissions
+### cd into the directory
 ```
-chmod 777 dist/bombsquad_headless
-chmod 777 bombsquad_server
+cd EntityX
 ```
 
 ### Run the server.

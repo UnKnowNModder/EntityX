@@ -2,7 +2,6 @@
 
 from ._config import config
 from ._roles import roles
-from ..stats._stats import stats
 from ._clients import (
 	Client,
 	Player,
@@ -27,7 +26,6 @@ from ._enums import (
 __all__ = [
     "config",
     "roles",
-    "stats",
     "Client",
     "Player",
     "Players",

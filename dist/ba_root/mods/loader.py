@@ -21,6 +21,7 @@ class Load(babase.Plugin):
     def _load(self) -> None:
         # necessary imports
         import core
+        import stats
         import patches
         import commands
         import utilities
@@ -28,7 +29,7 @@ class Load(babase.Plugin):
         # boot storages.
         core.config.bootstrap()
         core.roles.bootstrap()
-        core.stats.bootstrap()
+        stats.stats.bootstrap()
 
         # load patches.
         patches.load()

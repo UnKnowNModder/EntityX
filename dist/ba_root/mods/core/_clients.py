@@ -38,7 +38,7 @@ class Client:
 	def authenticity(self) -> bool:
 		"""this client's authenticity."""
 		from . import config
-		if not config.read()['auth_verification']["enable"]:
+		if not config.read()['otp_verification']["enable"]:
 			return True
 		if self.client_id == -1:
 			# host is always authentic

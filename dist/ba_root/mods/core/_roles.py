@@ -23,10 +23,10 @@ class Roles(Storage):
 		
 		from . import config
 		config = config.read()
-		if not config["auth_verification"]["enable"]:
+		if not config["otp_verification"]["enable"]:
 			return
 		today = datetime.now().date()
-		future_deletion = today + timedelta(days=config["auth_verification"]["days"])
+		future_deletion = today + timedelta(days=config["otp_verification"]["days"])
 		# check for auth file
 		if self.auth.exists():
 			# exists, we need to check for deletion time.

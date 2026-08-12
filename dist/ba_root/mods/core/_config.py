@@ -16,10 +16,6 @@ class Config(Storage):
 		"""creates essential files."""
 		if not self.path.exists():
 			config = {}
-			config["stats"] = {"enable": False, "leaderboard": False}
-			config["auth_verification"] = {"enable": False, "days": 7}
-			config[Utility.WHITELIST] = False
-			config[Utility.SPECTATOR] = True
 			self.commit(config)
 
 	def toggle(self, utility: Utility) -> bool:

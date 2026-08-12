@@ -10,13 +10,13 @@ class Config(Storage):
 
 	def __init__(self) -> None:
 		super().__init__("config.json")
-		self.toml = self.directory.parents[3] / "config.toml"
+		self.toml = self.directory.parents[2] / "config.toml"
 
 	def bootstrap(self) -> None:
 		"""creates essential files."""
 		if not self.path.exists():
 			config = {}
-			config["stats"] = {"enable": False, "leaderboard": True}
+			config["stats"] = {"enable": False, "leaderboard": False}
 			config["auth_verification"] = {"enable": False, "days": 7}
 			config[Utility.WHITELIST] = False
 			config[Utility.SPECTATOR] = True

@@ -4,17 +4,19 @@ from pathlib import Path
 from typing import Optional
 import json, babase
 
+MODS_DIR: Path = Path(babase.env()["python_directory_user"])
+
 class Storage:
 	"""storage class."""
 
-	def __init__(self, filename: str, is_dir: bool = False) -> None:
-		self.directory = Path(babase.env()["python_directory_user"]) / "storage"
+	def __init__(self, filename: str, subfolder: str | Path | None = None) -> None:
 		self._cache = {}
-		if is_dir:
-			self.directory = self.directory / filename
-		else:
-			self.path = self.directory / filename
+		if subfolder:
+			self.directory = MODS_DIR / subfolder
+		else: 
+			self.directory = MODS_DIR
 		self.directory.mkdir(parents=True, exist_ok=True)
+		self.path = self.directory / filename
 
 	def read(self, external_path: Optional[Path] = None) -> dict:
 		"""reads the data from the file."""

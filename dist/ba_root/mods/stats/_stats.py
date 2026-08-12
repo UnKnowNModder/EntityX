@@ -7,7 +7,7 @@ class Stats(Storage):
 	"""stats storage class."""
 
 	def __init__(self) -> None:
-		super().__init__("stats.json")
+		super().__init__("stats.json", "stats")
 		self.top = []
 
 	def bootstrap(self) -> None:

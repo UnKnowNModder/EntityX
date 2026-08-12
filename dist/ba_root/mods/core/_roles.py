@@ -8,7 +8,7 @@ class Roles(Storage):
 	"""roles storage class."""
 
 	def __init__(self) -> None:
-		super().__init__("roles.json")
+		super().__init__("roles.json", "storage")
 		self.auth = self.directory / "auth.json"
 
 	def bootstrap(self) -> None:

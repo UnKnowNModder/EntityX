@@ -1,6 +1,5 @@
 """ patches loader plugin"""
-# ba_meta require api 9
-import babase, bascenev1, importlib
+import importlib
 from pathlib import Path
 from functools import wraps
 from inspect import signature
@@ -37,7 +36,7 @@ def patch_method(module, func_name: str, initial: bool = False):
         return wrapper  # just to be safe.
     return decorator
 
-def _load_patches():
+def load():
     """automatically imports patch files in the directory."""
     package_dir = Path(__file__).parent
     for file in package_dir.glob("*.py"):
@@ -47,11 +46,4 @@ def _load_patches():
         except ImportError:
             print(f"⚠️ Failed to load patch file {file.stem}")
 
-# ba_meta export babase.Plugin
-class Execute(babase.Plugin):
-    def __init__(self) -> None:
-        """ called on app running. """
-        _load_patches()
-        bascenev1.reload_hooks()
-        print("✅ Loaded patches.")
 

@@ -1,8 +1,5 @@
 """core package that initializes and binds storage methods."""
 
-# ba_meta require api 9
-
-import babase
 from ._config import config
 from ._roles import roles
 from ._stats import stats
@@ -26,12 +23,21 @@ from ._enums import (
 	Utility
 )
 
-# ba_meta export babase.Plugin
-class Initialize(babase.Plugin):
-	"""initializes and bootstraps the storages."""
-
-	def __init__(self) -> None:
-		config.bootstrap()
-		roles.bootstrap()
-		stats.bootstrap()
-		print("✅ Initiated storages. ")
+__all__ = [
+    "config",
+    "roles",
+    "stats",
+    "Client",
+    "Player",
+    "Players",
+    "all_clients",
+    "fetch_client",
+    "fetch_player",
+    "success",
+    "error",
+    "send",
+    "Authority",
+    "Role",
+    "Playlist",
+    "Utility",
+]

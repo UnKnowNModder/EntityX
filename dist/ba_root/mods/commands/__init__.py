@@ -1,9 +1,9 @@
 """core command package."""
-# ba_meta require api 9
+
 # thanks to snoweee for enlightening me with decorators <3
 from __future__ import annotations
 from core import Authority, Players, Client, fetch_client, fetch_player
-import importlib, babase, inspect, traceback
+import importlib, inspect, traceback
 from pathlib import Path
 
 _commands = {}
@@ -84,7 +84,7 @@ def control_message(msg: str, client_id: int) -> str | None:
 		return command_line(msg, client)
 	return
 
-def _load_commands():
+def load():
     """automatically imports command files in the directory."""
     package_dir = Path(__file__).parent
     for file in package_dir.glob("*.py"):
@@ -96,8 +96,3 @@ def _load_commands():
         except ImportError:
             print(f"⚠️ Failed to load command file {file.stem}")
 
-# ba_meta export babase.Plugin
-class Load(babase.Plugin):
-	def __init__(self) -> None:
-		_load_commands()
-		print("✅ Loaded commands. ")

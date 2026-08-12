@@ -72,14 +72,6 @@ class Client:
 			return self.authenticate()
 
 	@property
-	def is_participant(self) -> bool:
-		""" whether the account is any participant of the current match. """
-		from . import tournament
-		if tournament.match:
-			return self.account_id in tournament.match["confirmed"]
-		return False
-
-	@property
 	def ping(self) -> int:
 		""" returns the client's ping """
 		return int(bascenev1.get_client_ping(self.client_id))

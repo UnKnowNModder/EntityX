@@ -16,7 +16,6 @@ class Config(Storage):
 		"""creates essential files."""
 		if not self.path.exists():
 			config = {}
-			config["tournament"] = {"webhook_url": "YOUR RESULT ANNOUNCEMENT WEBHOOK URL HERE.", "include_score": True}
 			config["stats"] = {"enable": False, "leaderboard": True}
 			config["auth_verification"] = {"enable": False, "days": 7}
 			config[Utility.WHITELIST] = False

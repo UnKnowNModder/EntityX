@@ -2,10 +2,9 @@
 
 # ba_meta require api 9
 
-import babase, sys
+import babase
 from ._config import config
 from ._roles import roles
-from ._tournament import tournament
 from ._stats import stats
 from ._clients import (
 	Client,
@@ -25,8 +24,7 @@ from ._enums import (
 	Authority,
 	Role,
 	Playlist,
-	Utility,
-	Match
+	Utility
 )
 
 # ba_meta export babase.Plugin
@@ -36,6 +34,5 @@ class Initialize(babase.Plugin):
 	def __init__(self) -> None:
 		config.bootstrap()
 		roles.bootstrap()
-		tournament.bootstrap()
 		stats.bootstrap()
 		print("✅ Initiated storages. ")

@@ -1,7 +1,6 @@
 """types file for storage."""
 
 from enum import IntEnum, StrEnum
-from typing import TypedDict, NotRequired, Any
 
 
 class Authority(IntEnum):
@@ -35,18 +34,3 @@ class Playlist(IntEnum):
 
 	TEAMS = 617192
 	FFA = 617193
-
-class Team(TypedDict):
-	""" team type for tournament. """
-	
-	name: str
-	participants: list[str]
-
-class Match(TypedDict):
-	""" match type for tournament. """
-
-	id: NotRequired[int]
-	series: int
-	teams: list[Team]
-	confirmed: NotRequired[list[str]]
- 

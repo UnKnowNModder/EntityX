@@ -1,6 +1,6 @@
-""" stats storage core. """
+""" stats storage. """
 from __future__ import annotations
-from ._storage import Storage
+from core._storage import Storage
 import bascenev1
 
 class Stats(Storage):

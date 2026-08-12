@@ -1,6 +1,6 @@
 import core
 from bascenev1._activitytypes import ScoreScreenActivity
-from utilities.stats import update_stats
+from stats import update_stats
 from . import patch_method
 
 @patch_method(ScoreScreenActivity, "on_begin", initial = True)

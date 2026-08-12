@@ -2,7 +2,7 @@
 
 from ._config import config
 from ._roles import roles
-from ._stats import stats
+from ..stats._stats import stats
 from ._clients import (
 	Client,
 	Player,
@@ -14,7 +14,8 @@ from ._clients import (
 from ._utils import (
 	success,
 	error,
-	send
+	send,
+    Text
 )
 from ._enums import (
 	Authority,
@@ -36,6 +37,7 @@ __all__ = [
     "success",
     "error",
     "send",
+    "Text",
     "Authority",
     "Role",
     "Playlist",

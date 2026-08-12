@@ -1,10 +1,7 @@
 """ modified spaz functionality. """
 from __future__ import annotations
-from typing import Sequence
 import bascenev1
-import bacore
-from bacore import replace_method
-from bascenev1lib.actor import playerspaz
+import core
 
 class Text:
 	""" text which spawns on the node's head. """
@@ -41,29 +38,7 @@ def attach_rank(self, player: bascenev1.Player) -> None:
 	""" attaches the rank on player head. """
 	if player and player.sessionplayer:
 		account_id = player.sessionplayer.get_account_id()
-		stats = bacore.stats.get(account_id)
+		stats = core.stats.get(account_id)
 		if stats:
 			rank = f"#{stats['rank']}"
 			Text(self.node, rank)
-
-
-@replace_method(playerspaz.PlayerSpaz, "__init__", initial = True)
-def new_init(self,player: bascenev1.Player,*,color: Sequence[float] = (1.0, 1.0, 1.0),highlight: Sequence[float] = (0.5, 0.5, 0.5),character: str = "Spaz",powerups_expire: bool = True):
-	""" modified constructor of PlayerSpaz class. """
-	config = bacore.config.read()
-	if config["stats"]["enable"]:
-		attach_rank(self, player)
-
-@replace_method(bascenev1, "get_default_powerup_distribution")
-def powerup_distribution() -> Sequence[tuple[str, int]]:
-	return (
-		('triple_bombs', 3),
-		('ice_bombs', 3),
-		('punch', 0),
-		('impact_bombs', 3),
-		('land_mines', 2),
-		('sticky_bombs', 3),
-		('shield', 0),
-		('health', 0),
-		('curse', 0),
-	)

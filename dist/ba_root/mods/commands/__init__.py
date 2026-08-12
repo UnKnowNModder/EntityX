@@ -2,8 +2,8 @@
 # ba_meta require api 9
 # thanks to snoweee for enlightening me with decorators <3
 from __future__ import annotations
-from bacore import Authority, Players, Client, fetch_client, fetch_player, replace_method
-import importlib, babase, inspect, traceback, bascenev1
+from core import Authority, Players, Client, fetch_client, fetch_player
+import importlib, babase, inspect, traceback
 from pathlib import Path
 
 _commands = {}
@@ -69,7 +69,6 @@ def command_line(msg: str, client: Client) -> str | None:
 	# wasn't any known command.
 	return msg
 
-@replace_method(bascenev1._hooks, "filter_chat_message")
 def control_message(msg: str, client_id: int) -> str | None:
 	""" controls the message for filters/commands. """
 	client = Client(client_id) if client_id == -1 else fetch_client(client_id)
@@ -101,5 +100,4 @@ def _load_commands():
 class Load(babase.Plugin):
 	def __init__(self) -> None:
 		_load_commands()
-		bascenev1.reload_hooks()
 		print("✅ Loaded commands. ")

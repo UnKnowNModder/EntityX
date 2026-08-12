@@ -1,8 +1,8 @@
 """ management commands. """
 from __future__ import annotations
 from . import on_command
-from bacore import Authority, Client, Player, Role, Playlist, Utility, send, success, fetch_client
-import bascenev1, bacore, babase
+from core import Authority, Client, Player, Role, Playlist, Utility, send, success, fetch_client
+import bascenev1, core, babase
 
 
 @on_command(name="/end", aliases=["/over"], authority=Authority.ADMIN)
@@ -108,7 +108,7 @@ def set_max_players(client: Client, args: list[str]):
 @on_command(name="/spectator", aliases=["/lobby"], authority=Authority.ADMIN)
 def toggle_spectators(client: Client):
 	"""Toggle spectator mode"""
-	status = "allowed" if bacore.config.toggle(Utility.SPECTATOR) else "disallowed"
+	status = "allowed" if core.config.toggle(Utility.SPECTATOR) else "disallowed"
 	success(f"{client.name} has {status} spectators")
 
 
@@ -134,13 +134,13 @@ def unmute_player(client: Client, target: Client):
 @on_command(name="/ffa", authority=Authority.ADMIN)
 def set_ffa_playlist(client: Client):
 	"""Set FFA playlist"""
-	bacore.config.set_playlist(Playlist.FFA)
+	core.config.set_playlist(Playlist.FFA)
 
 
 @on_command(name="/teams", authority=Authority.ADMIN)
 def set_teams_playlist(client: Client):
 	"""Set Teams playlist"""
-	bacore.config.set_playlist(Playlist.TEAMS)
+	core.config.set_playlist(Playlist.TEAMS)
 
 
 # =================== #
@@ -151,28 +151,28 @@ def set_teams_playlist(client: Client):
 @on_command(name="/ban", authority=Authority.LEADER, usage="/ban <account_id>")
 def ban_player(client: Client, account_id: str):
 	"""Ban player"""
-	bacore.roles.add(Role.BANLIST, account_id)
+	core.roles.add(Role.BANLIST, account_id)
 	client.success(f"Banned {account_id}")
 
 
 @on_command(name="/unban", authority=Authority.LEADER, usage="/unban <account_id>")
 def unban_player(client: Client, account_id: str):
 	"""Unban account"""
-	bacore.roles.remove(Role.BANLIST, account_id)
+	core.roles.remove(Role.BANLIST, account_id)
 	client.success(f"Unbanned {account_id}")
 
 
 @on_command(name="/whitelist", aliases=["/wl"], authority=Authority.LEADER)
 def toggle_whitelist(client: Client):
 	"""Toggle whitelist"""
-	status = "enabled" if bacore.config.toggle(Utility.WHITELIST) else "disabled"
+	status = "enabled" if core.config.toggle(Utility.WHITELIST) else "disabled"
 	success(f"{client.name} has {status} whitelist")
 
 
 @on_command(name="/addwl", authority=Authority.LEADER, usage="/addwl <account_id>")
 def add_to_whitelist(client: Client, account_id: str):
 	"""Add to whitelist"""
-	bacore.roles.add(Role.WHITELIST, account_id)
+	core.roles.add(Role.WHITELIST, account_id)
 	client.success(f"Whitelisted {account_id}")
 
 
@@ -184,19 +184,19 @@ def add_to_whitelist(client: Client, account_id: str):
 )
 def remove_from_whitelist(client: Client, account_id: str):
 	"""Remove from whitelist"""
-	bacore.roles.remove(Role.WHITELIST, account_id)
+	core.roles.remove(Role.WHITELIST, account_id)
 	client.success(f"Removed {account_id} from whitelist")
 
 
 @on_command(name="/admin", authority=Authority.LEADER, usage="/admin <client_id>")
 def add_admin(client: Client, target: Client):
 	"""Add admin"""
-	bacore.roles.add(Role.ADMIN, target.account_id)
+	core.roles.add(Role.ADMIN, target.account_id)
 	client.success(f"Added {target.name} as admin")
 
 
 @on_command(name="/rmadmin", authority=Authority.LEADER, usage="/rmadmin <client_id>")
 def remove_admin(client: Client, target: Client):
 	"""Remove admin"""
-	bacore.roles.remove(Role.ADMIN, target.account_id)
+	core.roles.remove(Role.ADMIN, target.account_id)
 	client.success(f"Removed {target.name} as admin")

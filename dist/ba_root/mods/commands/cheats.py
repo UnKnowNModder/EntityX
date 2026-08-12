@@ -1,7 +1,7 @@
 """ cheat commands. """
 from __future__ import annotations
 from . import on_command
-from bacore import Authority, Client, Player, Players
+from core import Authority, Client, Player, Players
 
 @on_command(name="/kill", authority=Authority.ADMIN, usage="/kill <index id>")
 def kill_player(client: Client, player: Player):

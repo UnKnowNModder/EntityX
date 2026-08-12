@@ -1,7 +1,7 @@
 """ regular commands. """
 from __future__ import annotations
 from . import on_command
-from core import Client, all_clients, stats
+from core import Client, all_clients
 import bascenev1
 
 @on_command(name="/list", aliases=["/ls"])
@@ -19,8 +19,9 @@ def list(client: Client):
 	client.success(string)
 
 @on_command(name="/stats")
-def show_stats(client: core.Client) -> None:
+def show_stats(client: Client) -> None:
 	"""shows the client his stats."""
+	from stats import stats
 	if stats := stats.get(client.account_id):
 		message = "{} | score: {} | kills: {} | deaths: {} | games: {}".format(stats["rank"], stats["score"], stats["kills"], stats["deaths"], stats["games"])
 		client.send(message, sender = "rank")

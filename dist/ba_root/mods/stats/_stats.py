@@ -18,8 +18,7 @@ class Stats(Storage):
 	def get(self, account_id: str) -> dict[str, int] | None:
 		""" returns the stats of the account. """
 		stats = self.read()
-		if account_id in stats:
-			return stats[account_id]
+		return stats.get(account_id, None)
 	
 	def sort(self) -> dict[str, dict]:
 		""" sorts the stats in descending order. """

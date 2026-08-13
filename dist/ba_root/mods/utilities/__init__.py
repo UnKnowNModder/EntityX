@@ -1,6 +1,8 @@
-""" utilities loader plugin. """
+"""utilities loader plugin."""
+
 import importlib
 from pathlib import Path
+
 
 def load():
     """automatically imports utility files in the directory."""

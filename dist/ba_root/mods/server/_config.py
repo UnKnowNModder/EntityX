@@ -12,7 +12,8 @@ class ConfigDict(dict):
     def __getitem__(self, key: str):
         item = super().__getitem__(key)
         if isinstance(item, dict) and not isinstance(item, ConfigDict):
-            return ConfigDict(item)
+            item = ConfigDict(item)
+            self[key] = item
         return item
 
     def __getattr__(self, setting: str):
@@ -20,6 +21,7 @@ class ConfigDict(dict):
             return self[setting]
         except KeyError:
             raise AttributeError(f"Config has no setting: {setting}")
+
 
 
 class Config(Storage):
@@ -44,9 +46,20 @@ class Config(Storage):
     def toggle(self, utility: Utility) -> bool:
         """toggles the utility."""
         config = self.read()
-        config[utility] = not config.get(utility, True)
+        value = config.get(utility)
+
+        # handle for nested utility settings
+        if isinstance(value, dict):
+            # its a dict.
+            new_state = not value["enable"]
+            value["enable"] = new_state
+            self.commit(config)
+            return new_state
+
+        new_state = not value
+        config[utility] = new_state
         self.commit(config)
-        return config[utility]
+        return new_state
 
     def set_playlist(self, playlist: Playlist) -> None:
         """changes the playlist code in .toml file."""

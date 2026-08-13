@@ -27,6 +27,7 @@ class Utility(StrEnum):
 
     WHITELIST = "whitelist"
     SPECTATOR = "spectator"
+    POWERUPS = "powerups"
 
 
 class Playlist(IntEnum):

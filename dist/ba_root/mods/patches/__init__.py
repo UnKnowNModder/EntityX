@@ -34,7 +34,7 @@ def patch_method(module, func_name: str, initial: bool = False):
             return new_func(*args, **kwargs)
 
         # incase we need the original function
-        wrapper._original = original_func
+        wrapper.original = original_func
 
         # patch it into the module
         setattr(module, func_name, wrapper)

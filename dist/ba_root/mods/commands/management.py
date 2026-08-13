@@ -113,8 +113,15 @@ def set_max_players(client: Client, args: list[str]):
 @on_command(name="/spectator", aliases=["/lobby"], authority=Authority.ADMIN)
 def toggle_spectators(client: Client):
     """Toggle spectator mode"""
-    status = "allowed" if server.config.toggle(Utility.SPECTATOR) else "disallowed"
+    status = "enabled" if server.config.toggle(Utility.SPECTATOR) else "disabled"
     success(f"{client.name} has {status} spectators")
+
+
+@on_command(name="/whitelist", aliases=["/wl"], authority=Authority.ADMIN)
+def toggle_whitelist(client: Client):
+    """Toggle whitelist mode"""
+    status = "enabled" if server.config.toggle(Utility.WHITELIST) else "disabled"
+    success(f"{client.name} has {status} whitelist")
 
 
 @on_command(name="/mute", authority=Authority.ADMIN, usage="/mute <client_id>")
@@ -146,6 +153,15 @@ def set_ffa_playlist(client: Client):
 def set_teams_playlist(client: Client):
     """Set Teams playlist"""
     server.config.set_playlist(Playlist.TEAMS)
+
+
+@on_command(
+    name="/powerups", aliases=["/pws", "/pw", "/powerup"], authority=Authority.ADMIN
+)
+def toggle_powerups(client: Client):
+    """Toggle for powerups"""
+    status = "enabled" if server.config.toggle(Utility.POWERUPS) else "disabled"
+    success(f"{client.name} has {status} powerups")
 
 
 # =================== #

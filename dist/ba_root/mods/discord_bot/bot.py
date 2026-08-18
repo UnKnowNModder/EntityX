@@ -3,10 +3,10 @@ import asyncio
 import json
 import socket
 import logging
-from discord import Intents, app_commands, Interaction, Activity, ActivityType
+from discord import Intents, app_commands, Interaction, Activity, ActivityType, Member
 from discord.ext import commands
 from server import config
-from server.enums import Authority
+from server.enums import Authority, Role
 from roles import roles
 
 
@@ -67,17 +67,17 @@ class GameClient:
 
 
 class DiscordBot(commands.Bot):
-    def __int__(self) -> None:
+    def __init__(self) -> None:
         super().__init__(command_prefix=[], intents=Intents.default(), owner_id=config.discord.owner_id)
 
     async def setup_hook(self) -> None:
         self.tree.on_error = self.on_app_cmd_error
-        await self.add_cog(Commands)
+        await self.add_cog(Commands(self))
 
     async def on_app_cmd_error(self, interaction: Interaction, error: app_commands.AppCommandError) -> None:
         if isinstance(error, app_commands.CheckFailure):
             return
-        print(f"discord bot: error: {error}")
+        print(f"Discord: error: {error}")
 
     async def on_ready(self):
         """ the bot is ready"""
@@ -161,14 +161,34 @@ class Commands(commands.Cog):
             await interaction.followup.send("There are no players in the server")
             return
 
-        heads = "{0:^16}{2:^15}\n"
+        heads = "{0:^16}{1:^15}\n"
         result = ""
         for player in response["players"]:
             result += heads.format(player["name"], player["client_id"])
 
         await interaction.followup.send(result)
 
+    @app_commands.command(name="admin")
+    @app_commands.describe(user="the user to add/remove")
+    @require(Authority.LEADER)
+    async def admin(self, interaction: Interaction, user: Member) -> None:
+        if roles.has_role(Role.ADMIN, user.id):
+            roles.remove(Role.ADMIN, user.id)
+            await interaction.response.send_message(f"{user.name} has been removed from admins", ephemeral=True)
+        else:
+            roles.add(Role.ADMIN, user.id)
+            await interaction.response.send_message(f"{user.name} has been added to admins", ephemeral=True)
 
+    @app_commands.command(name="owner")
+    @app_commands.describe(user="the user to add/remove")
+    @require(Authority.LEADER)
+    async def owner(self, interaction: Interaction, user: Member) -> None:
+        if roles.has_role(Role.LEADER, user.id):
+            roles.remove(Role.LEADER, user.id)
+            await interaction.response.send_message(f"{user.name} has been removed from owners", ephemeral=True)
+        else:
+            roles.add(Role.LEADER, user.id)
+            await interaction.response.send_message(f"{user.name} has been added to owners", ephemeral=True)
 
 
 if __name__ == "__main__":

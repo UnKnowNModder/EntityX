@@ -7,6 +7,7 @@ import threading
 import babase
 from pathlib import Path
 from server import config
+from server.clients import all_clients
 from server.utils import send
 
 class SocketTunnel(threading.Thread):
@@ -22,24 +23,33 @@ class SocketTunnel(threading.Thread):
         # this runs in a loop, but runs only when there socket receives bytes.
         while self.running:
             try:
-                raw_bytes, _ = self.sock.recvfrom(4096)
+                raw_bytes, addr = self.sock.recvfrom(4096)
                 if not self.running:
                     break
 
                 data = json.loads(raw_bytes.decode("utf-8"))
                 # push safely into the game thread.
                 babase.pushcall(
-                    lambda: self._handle_data(data),
+                    lambda: self._handle_data(data, self.sock, addr),
                     from_other_thread=True,
                 )
             except (OSError, socket.error):
                 break
 
-    def _handle_data(self, data: dict) -> None:
+    def _handle_data(self, data: dict, sock: socket.socket, addr: tuple) -> None:
         """ handles and processes the received data. """
         command = data["command"]
         if command == "message":
             send(data["text"], sender=data["sender"])
+
+        elif command == "list":
+            response = {"players": []}
+            for client in all_clients():
+                response["players"].append({
+                    "name": client.display_string,
+                    "client_id": client.client_id,
+                })
+            sock.sendto(json.dumps(response).encode("utf-8"), addr)
 
     def shutdown(self) -> None:
         """shuts down the thread gracefully."""

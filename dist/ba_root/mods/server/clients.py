@@ -18,11 +18,13 @@ class Client:
         account_id: str = "",
         name: str = "",
         in_lobby: bool = True,
+        display_string: str = "",
     ) -> None:
         self.client_id = client_id
         self.account_id = account_id
         self.name = name
         self.in_lobby = in_lobby
+        self.display_string = display_string
 
     @property
     def authority(self) -> Authority:
@@ -200,12 +202,13 @@ def all_clients() -> list[Client]:
     for client in bascenev1.get_game_roster()[1:]:
         client_id = client["client_id"]
         account_id = client["account_id"]
+        display_string = client["display_string"]
         in_lobby = not client["players"]
         if not in_lobby:
             name = client["players"][0]["name"]
         else:
             name = client["display_string"]
-        clients.append(Client(client_id, account_id, name, in_lobby))
+        clients.append(Client(client_id, account_id, name, in_lobby, display_string))
     return clients
 
 

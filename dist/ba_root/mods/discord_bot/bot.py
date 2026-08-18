@@ -1,5 +1,5 @@
 """ bot.py for discord bot functionality. """
-
+import asyncio
 import json
 import socket
 import logging
@@ -16,22 +16,34 @@ class GameClient:
         self.host = host
         self.port = config.discord.port
 
-    def send(self, payload: dict) -> None:
-        """ sends payload dict"""
+    def send_command(self, command: str, response: bool = False, **kwags) -> dict | None:
+        """ sends command to tunnel"""
+        payload = json.dumps({"command": command, **kwags}).encode("utf-8")
+        # run in background loop
+        return asyncio.get_running_loop().run_in_executor(None, self.send, payload, response)
+
+
+    def send(self, payload: bytes, response: bool) -> dict | None:
+        """ sends payload"""
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             try:
-                sock.sendto(json.dumps(payload).encode("utf-8"), (self.host, self.port))
+                sock.sendto(payload, (self.host, self.port))
+
+                # check if we need response.
+                if not response:
+                    return
+
+                sock.settimeout(2.0)
+                data, _ = sock.recvfrom(4096)
+                # return the dict.
+                return json.loads(data.decode("utf-8"))
+
             except Exception as e:
                 print(f"Error while sending payload to socket tunnel: {e}")
     
-    def say(self, text: str, sender: str | None = None):
+    def say(self, text: str, sender: str | None = None) -> dict | None:
         """ sends chat message to the game chat"""
-        payload = {
-            "command": "message",
-            "text": text,
-            "sender": sender
-        }
-        self.send(payload)
+        self.send_command(command="message", text=text, sender=sender)
 
     def kick(self, client_id: int):
         """ kicks the player"""
@@ -137,6 +149,26 @@ class Commands(commands.Cog):
     async def ffa(self, interaction: Interaction) -> None:
         """ playlist to ffa"""
         self.client.ffa()
+
+    @app_commands.command(name="list")
+    @require(Authority.ADMIN)
+    async def list(self, interaction: Interaction) -> None:
+        """ lists all the players from game"""
+        await interaction.response.defer(ephemeral=True)
+        response = await self.client.send_command("list", response=True)
+
+        if not response["players"]:
+            await interaction.followup.send("There are no players in the server")
+            return
+
+        heads = "{0:^16}{2:^15}\n"
+        result = ""
+        for player in response["players"]:
+            result += heads.format(player["name"], player["client_id"])
+
+        await interaction.followup.send(result)
+
+
 
 
 if __name__ == "__main__":

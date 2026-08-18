@@ -25,9 +25,9 @@ def send(
     message: str, clients: list[int] | None = None, sender: str | None = None
 ) -> None:
     """sends a chatmessage."""
-    if message.startswith("/"):
-        # cover up for server authority exploitation.
-        return
+    # if message.startswith("/"):
+    #     # cover up for server authority exploitation.
+    #     return
     bascenev1.chatmessage(message, clients=clients, sender_override=sender)
 
 

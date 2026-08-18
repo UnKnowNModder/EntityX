@@ -7,6 +7,12 @@
         "enable": false,
         "days": 7
     },
+    "discord": {
+        "enable": false,
+        "token": "ENTER-YOUR-BOT-TOKEN-HERE",
+        "port": 9001,
+        "owner_id": 0
+    },
     "whitelist": false,
     "spectator": true,
     "powerups": {

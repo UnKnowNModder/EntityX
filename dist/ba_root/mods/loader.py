@@ -46,5 +46,11 @@ class Load(babase.Plugin):
         # load utilities.
         utilities.load()
 
+        # discord bot
+        if server.config.discord.enable:
+            import discord_bot
+            discord_bot.load(self)
+
         # reload hooks.
         bascenev1.reload_hooks()
+

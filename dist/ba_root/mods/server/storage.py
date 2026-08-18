@@ -3,9 +3,9 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Optional
-import json, babase
+import json
 
-MODS_DIR: Path = Path(babase.env()["python_directory_user"])
+MODS_DIR: Path = Path(__file__).resolve().parent.parent
 
 
 class Storage:

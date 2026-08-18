@@ -1,7 +1,7 @@
 """config storage core."""
 
 from __future__ import annotations
-import re, babase
+import re
 from .storage import Storage
 from .enums import Utility, Playlist
 
@@ -32,7 +32,8 @@ class Config(Storage):
         self.toml = self.directory.parents[2] / "config.toml"
         self.template_file = (
             self.directory.parents[1]
-            / babase.env()["python_directory_app"]
+            / "ba_data"
+            / "python"
             / "config_template.json"
         )
 

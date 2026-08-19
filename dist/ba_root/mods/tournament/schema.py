@@ -45,9 +45,10 @@ class TournamentSchema:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> TournamentSchema:
         active_season = data.get("active_season", "0")
+        seasons = data.get("seasons", {})
         parsed_seasons = {
             season_id: SeasonSchema.from_dict(meta)
-            for season_id, meta in data.items()
+            for season_id, meta in seasons.items()
             if isinstance(meta, dict)
         }
         return cls(active_season=active_season, seasons=parsed_seasons)

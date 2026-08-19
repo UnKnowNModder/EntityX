@@ -9,7 +9,7 @@ from server.clients import Client
 def register(client: Client):
     """ verifies and registers into the tournament."""
     season_id = tournament.read().active_season
-    if not season_id:
+    if not int(season_id):
         client.error("There is no tournament ongoing.")
         return
     registration = Registration(season_id=season_id)

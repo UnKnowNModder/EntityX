@@ -96,14 +96,14 @@ class Commands(commands.Cog):
     @require(authority=Authority.LEADER)
     async def create_season(self, interaction: Interaction, title: str, type: TournamentType, series: SeriesFormat) -> None:
         """ creates a tournament season"""
-        if tournament.read().active_season:
+        if int(tournament.read().active_season):
             await interaction.response.send_message("Cannot create! a season is going on.")
             return
 
         from datetime import datetime, timezone, timedelta
         ist = timezone(timedelta(hours=5, minutes=30))
         
-        schema = SeasonSchema(title=title, series=series, type=type, created_at=datetime.now(ist))
+        schema = SeasonSchema(title=title, series=series, type=type, created_at=str(datetime.now(ist)))
         tournament.create_season(schema=schema)
         await interaction.response.send_message(f"The season: {title} has been created with {type} and {series}")
 
@@ -168,14 +168,14 @@ class Commands(commands.Cog):
     async def participate(self, interaction: Interaction, account_id: str) -> None:
         """ participate in tournament"""
         season_id = tournament.read().active_season
-        if not season_id:
+        if not int(season_id):
             await interaction.response.send_message("There is no tournament ongoing.", ephemeral=True)
             return
 
         # tournament role
         role_name = "Participant"
         guild = interaction.guild
-        role = discord.utils.get(guild.roles, role_name)
+        role = discord.utils.get(guild.roles, name=role_name)
 
         if not role:
             # create it

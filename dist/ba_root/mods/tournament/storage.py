@@ -37,7 +37,7 @@ class Tournament(Storage):
         """ creates the season with the given schema"""
         data = self.read()
         # we get the next season count safely.
-        season_id = max([int(id) for id in data.seasons.keys()], default=0) + 1
+        season_id = str(max([int(id) for id in data.seasons.keys()], default=0) + 1)
 
         data.seasons[season_id] = schema
         # activate this season

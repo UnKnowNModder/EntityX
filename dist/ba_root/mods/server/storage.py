@@ -37,3 +37,4 @@ class Storage:
         with target_path.open("w") as f:
             self._cache[target_path] = data
             json.dump(data, f, indent=4)
+

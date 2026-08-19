@@ -30,12 +30,14 @@ class Load(babase.Plugin):
         import patches
         import commands
         import utilities
+        import tournament
 
         # boot storages.
         server.config.bootstrap()
         roles.roles.bootstrap()
         roles.auth.bootstrap()
         stats.stats.bootstrap()
+        tournament.tournament.bootstrap()
 
         # load patches.
         patches.load()

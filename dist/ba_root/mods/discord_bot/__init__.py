@@ -6,7 +6,9 @@ import subprocess
 import threading
 import babase
 from pathlib import Path
+from commands import command_line
 from server import config
+from server.clients import Client
 from server.clients import all_clients
 from server.utils import send
 
@@ -38,11 +40,17 @@ class SocketTunnel(threading.Thread):
 
     def _handle_data(self, data: dict, sock: socket.socket, addr: tuple) -> None:
         """ handles and processes the received data. """
-        command = data["command"]
-        if command == "message":
+        action = data["action"]
+        if action == "message":
             send(data["text"], sender=data["sender"])
 
-        elif command == "list":
+        elif action == "command":
+            account_id = data["account_id"]
+            command = data["command"]
+            client = Client(account_id=account_id)
+            command_line(msg=command, client=client)
+
+        elif action == "list":
             response = {"players": []}
             for client in all_clients():
                 response["players"].append({

@@ -15,7 +15,7 @@ class Client:
     def __init__(
         self,
         client_id: int = 0,
-        account_id: str = "",
+        account_id: str | int = "",
         name: str = "",
         in_lobby: bool = True,
         display_string: str = "",

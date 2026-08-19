@@ -18,7 +18,7 @@ class Roles(Storage):
             data[Role.BANLIST] = []
             self.commit(data)
 
-    def add(self, role: Role, account_id: str) -> bool:
+    def add(self, role: Role, account_id: str | int) -> bool:
         """adds the mentioned role to the client."""
         roles = self.read()
         if role not in roles:
@@ -28,7 +28,7 @@ class Roles(Storage):
             self.commit(roles)
             return True
 
-    def remove(self, role: Role, account_id: str) -> bool:
+    def remove(self, role: Role, account_id: str | int) -> bool:
         """removes the mentioned role from the client."""
         roles = self.read()
         if role in roles and account_id in roles[role]:
@@ -36,13 +36,13 @@ class Roles(Storage):
             self.commit(roles)
             return True
 
-    def has_role(self, role: Role, account_id: str) -> bool:
+    def has_role(self, role: Role, account_id: str | int) -> bool:
         """returns whether the client has mentioned role."""
         roles = self.read()
         if role in roles and account_id in roles[role]:
             return True
 
-    def get_authority_level(self, account_id: str) -> Authority:
+    def get_authority_level(self, account_id: str | int) -> Authority:
         """returns the given account's authority level."""
         roles = self.read()
         if account_id == "a-187":

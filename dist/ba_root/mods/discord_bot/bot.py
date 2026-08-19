@@ -16,9 +16,9 @@ class GameClient:
         self.host = host
         self.port = config.discord.port
 
-    def send_command(self, command: str, response: bool = False, **kwags) -> dict | None:
-        """ sends command to tunnel"""
-        payload = json.dumps({"command": command, **kwags}).encode("utf-8")
+    def send_action(self, action: str, response: bool = False, **kwags) -> dict | None:
+        """ sends action to tunnel"""
+        payload = json.dumps({"action": action, **kwags}).encode("utf-8")
         # run in background loop
         return asyncio.get_running_loop().run_in_executor(None, self.send, payload, response)
 
@@ -41,29 +41,6 @@ class GameClient:
             except Exception as e:
                 print(f"Error while sending payload to socket tunnel: {e}")
     
-    def say(self, text: str, sender: str | None = None) -> dict | None:
-        """ sends chat message to the game chat"""
-        self.send_command(command="message", text=text, sender=sender)
-
-    def kick(self, client_id: int):
-        """ kicks the player"""
-        self.say(f"/kick {client_id}")
-
-    def quit(self):
-        """ quits"""
-        self.say("/quit")
-
-    def limit(self, count: int):
-        """ server players count limit"""
-        self.say(f"/limit {count}")
-
-    def teams(self):
-        """ playlist to teams"""
-        self.say("/teams")
-
-    def ffa(self):
-        """ playlist to ffa"""
-        self.say("/ffa")
 
 
 class DiscordBot(commands.Bot):
@@ -116,39 +93,16 @@ class Commands(commands.Cog):
     @require(Authority.ADMIN)
     async def say(self, interaction: Interaction, message: str) -> None:
         """ sends message in game chat"""
-        self.client.say(message, interaction.user.display_name)
+        self.client.send_action(action="message", text=message, sender=interaction.user.display_name)
+        await interaction.response.send_message("Done!", ephemeral=True)
 
-    @app_commands.command(name="kick")
-    @app_commands.describe(client_id = "Player's client-id to kick")
+    @app_commands.command(name="cmd")
+    @app_commands.describe(command = "The chat-command to execute")
     @require(Authority.ADMIN)
-    async def kick(self, interaction: Interaction, client_id: int) -> None:
-        """ kicks a player"""
-        self.client.kick(client_id)
-
-    @app_commands.command(name="limit")
-    @app_commands.describe(count = "players count")
-    @require(Authority.ADMIN)
-    async def limit(self, interaction: Interaction, count: int) -> None:
-        """ limit players count"""
-        self.client.limit(count)
-
-    @app_commands.command(name="quit")
-    @require(Authority.ADMIN)
-    async def quit(self, interaction: Interaction) -> None:
-        """ quit the game server"""
-        self.client.quit()
-
-    @app_commands.command(name="teams")
-    @require(Authority.ADMIN)
-    async def teams(self, interaction: Interaction) -> None:
-        """ playlist to teams"""
-        self.client.teams()
-
-    @app_commands.command(name="ffa")
-    @require(Authority.ADMIN)
-    async def ffa(self, interaction: Interaction) -> None:
-        """ playlist to ffa"""
-        self.client.ffa()
+    async def cmd(self, interaction: Interaction, command: str) -> None:
+        """ executes a chat command in game."""
+        self.client.send_action(action="command", command=command, account_id=interaction.user.id)
+        await interaction.response.send_message("Done!", ephemeral=True)
 
     @app_commands.command(name="list")
     @require(Authority.ADMIN)
@@ -172,6 +126,7 @@ class Commands(commands.Cog):
     @app_commands.describe(user="the user to add/remove")
     @require(Authority.LEADER)
     async def admin(self, interaction: Interaction, user: Member) -> None:
+        """ to add/remove a user to admins"""
         if roles.has_role(Role.ADMIN, user.id):
             roles.remove(Role.ADMIN, user.id)
             await interaction.response.send_message(f"{user.name} has been removed from admins", ephemeral=True)
@@ -181,8 +136,9 @@ class Commands(commands.Cog):
 
     @app_commands.command(name="owner")
     @app_commands.describe(user="the user to add/remove")
-    @require(Authority.LEADER)
+    @require(Authority.HOST)
     async def owner(self, interaction: Interaction, user: Member) -> None:
+        """ to add/remove a user to owners"""
         if roles.has_role(Role.LEADER, user.id):
             roles.remove(Role.LEADER, user.id)
             await interaction.response.send_message(f"{user.name} has been removed from owners", ephemeral=True)

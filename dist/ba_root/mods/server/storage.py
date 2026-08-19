@@ -13,6 +13,7 @@ class Storage:
 
     def __init__(self, filename: str, subfolder: str | Path | None = None) -> None:
         self._cache = {}
+        self._mtime = {}
         if subfolder:
             self.directory = MODS_DIR / subfolder
         else:
@@ -23,18 +24,25 @@ class Storage:
     def read(self, external_path: Optional[Path] = None) -> dict:
         """reads the data from the file."""
         target_path = external_path or self.path
-        if target_path not in self._cache:
-            try:
-                with target_path.open("r") as f:
-                    self._cache[target_path] = json.load(f)
-            except (FileNotFoundError, json.JSONDecodeError):
-                return {}
-        return self._cache[target_path]
+        try:
+            current_mtime = target_path.stat().st_mtime
+            if target_path in self._cache and self._mtime.get(target_path) == current_mtime:
+                # return from cache
+                return self._cache[target_path]
+            with target_path.open("r") as f:
+                data = json.load(f)
+                self._cache[target_path] = data
+                self._mtime[target_path] = current_mtime
+                return data
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
 
     def commit(self, data: dict | list, external_path: Optional[Path] = None) -> None:
         """commits the data to the file."""
         target_path = external_path or self.path
         with target_path.open("w") as f:
-            self._cache[target_path] = data
             json.dump(data, f, indent=4)
 
+        # update
+        self._cache[target_path] = data
+        self._mtime[target_path] = target_path.stat().st_mtime

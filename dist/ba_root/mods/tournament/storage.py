@@ -19,8 +19,7 @@ class Tournament(Storage):
     def bootstrap(self):
         """ creates the file if not already existing. """
         if not self.path.exists():
-            data = self.read()
-            self.commit(data)
+            self.commit(TournamentSchema())
 
     @override
     def read(self, external_path = None) -> TournamentSchema:

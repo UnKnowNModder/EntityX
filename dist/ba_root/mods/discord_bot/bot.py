@@ -98,18 +98,16 @@ class Commands(commands.Cog):
 
     @app_commands.command(name="cmd")
     @app_commands.describe(command = "The chat-command to execute")
-    @require(Authority.ADMIN)
     async def cmd(self, interaction: Interaction, command: str) -> None:
         """ executes a chat command in game."""
         self.client.send_action(action="command", command=command, account_id=interaction.user.id)
         await interaction.response.send_message("Done!", ephemeral=True)
 
     @app_commands.command(name="list")
-    @require(Authority.ADMIN)
     async def list(self, interaction: Interaction) -> None:
         """ lists all the players from game"""
         await interaction.response.defer(ephemeral=True)
-        response = await self.client.send_command("list", response=True)
+        response = await self.client.send_action(action="list", response=True)
 
         if not response["players"]:
             await interaction.followup.send("There are no players in the server")

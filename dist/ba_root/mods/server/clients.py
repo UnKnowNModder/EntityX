@@ -1,7 +1,12 @@
 """client-related utility"""
 
 from __future__ import annotations
-import bascenev1, secrets, _bascenev1
+
+import secrets
+
+import _bascenev1
+import bascenev1
+
 from . import utils
 from .enums import Authority
 

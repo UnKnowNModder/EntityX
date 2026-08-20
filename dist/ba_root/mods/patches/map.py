@@ -1,6 +1,8 @@
-from server import config
 from bascenev1._map import Map
+
+from server import config
 from stats import stats
+
 from . import patch_method
 
 

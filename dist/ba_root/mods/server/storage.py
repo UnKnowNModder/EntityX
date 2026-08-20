@@ -1,9 +1,9 @@
 """defines base storage class."""
 
 from __future__ import annotations
-from pathlib import Path
-from typing import Optional
+
 import json
+from pathlib import Path
 
 MODS_DIR: Path = Path(__file__).resolve().parent.parent
 
@@ -21,12 +21,15 @@ class Storage:
         self.directory.mkdir(parents=True, exist_ok=True)
         self.path = self.directory / filename
 
-    def read(self, external_path: Optional[Path] = None) -> dict:
+    def read(self, external_path: Path | None = None) -> dict:
         """reads the data from the file."""
         target_path = external_path or self.path
         try:
             current_mtime = target_path.stat().st_mtime
-            if target_path in self._cache and self._mtime.get(target_path) == current_mtime:
+            if (
+                target_path in self._cache
+                and self._mtime.get(target_path) == current_mtime
+            ):
                 # return from cache
                 return self._cache[target_path]
             with target_path.open("r") as f:
@@ -37,7 +40,7 @@ class Storage:
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
 
-    def commit(self, data: dict | list, external_path: Optional[Path] = None) -> None:
+    def commit(self, data: dict | list, external_path: Path | None = None) -> None:
         """commits the data to the file."""
         target_path = external_path or self.path
         with target_path.open("w") as f:

@@ -1,6 +1,7 @@
-from server.storage import Storage
-from server import config
 from datetime import datetime, timedelta
+
+from server import config
+from server.storage import Storage
 
 
 class Auth(Storage):

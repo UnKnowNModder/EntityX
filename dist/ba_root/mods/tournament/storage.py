@@ -1,42 +1,42 @@
-""" storages for handling tournament data. """
+"""storages for handling tournament data."""
 
+from pathlib import Path
+from typing import override
+
+from server.enums import TeamStatus
 from server.storage import Storage
 from tournament.schema import SeasonSchema, TournamentSchema
-from server.enums import TournamentStage
-from typing import override
-from pathlib import Path
-from secrets import randbelow
 
 SEASONS_DIR = Path("tournament") / "Seasons"
 
+
 class Tournament(Storage):
-    """ reads/writes json files. """
+    """reads/writes json files."""
 
     def __init__(self):
         super().__init__("tournament.json", SEASONS_DIR)
 
-    
     def bootstrap(self):
-        """ creates the file if not already existing. """
+        """creates the file if not already existing."""
         if not self.path.exists():
             self.commit(TournamentSchema())
 
     @override
-    def read(self, external_path = None) -> TournamentSchema:
-        """ reads from the file and returns schema"""
+    def read(self, external_path=None) -> TournamentSchema:
+        """reads from the file and returns schema"""
         data = super().read(external_path=external_path)
         return TournamentSchema.from_dict(data=data)
 
     @override
-    def commit(self, data: TournamentSchema, external_path = None) -> None:
-        """ commits the schema to the file as dict."""
+    def commit(self, data: TournamentSchema, external_path=None) -> None:
+        """commits the schema to the file as dict."""
         super().commit(data=data.to_dict(), external_path=external_path)
 
     def create_season(self, schema: SeasonSchema) -> None:
-        """ creates the season with the given schema"""
+        """creates the season with the given schema"""
         data = self.read()
         # we get the next season count safely.
-        season_id = str(max([int(id) for id in data.seasons.keys()], default=0) + 1)
+        season_id = str(max([int(id) for id in data.seasons], default=0) + 1)
 
         data.seasons[season_id] = schema
         # activate this season
@@ -48,8 +48,8 @@ class Tournament(Storage):
         season_dir = self.directory / season_id
         season_dir.mkdir(parents=True, exist_ok=True)
 
-    def get_season(self, season_id: str) -> SeasonSchema | None: 
-        """ returns a seasonschmea by its id"""
+    def get_season(self, season_id: str) -> SeasonSchema | None:
+        """returns a seasonschmea by its id"""
         data = self.read()
         season = data.seasons.get(season_id)
 
@@ -57,55 +57,144 @@ class Tournament(Storage):
             return season
 
     def update_season(self, season_id: str, season: SeasonSchema) -> None:
-        """ updates a season using the given seasonschema."""
+        """updates a season using the given seasonschema."""
         data = self.read()
         data.seasons[season_id] = season
         self.commit(data)
 
+
 tournament = Tournament()
 
+
 class Registration(Storage):
-    """ storage class for registration"""
+    """storage class for registration"""
+
     def __init__(self, season_id: str):
         super().__init__("registrations.json", SEASONS_DIR / season_id)
         self.bootstrap()
 
     def bootstrap(self):
-        """ creates the file if not already existing. """
+        """creates the file if not already existing."""
         if not self.path.exists():
-            data = {
-                "pre-registered": {},
-                "registered": {}
-            }
+            data = {"teams": {}, "players": {}}
             self.commit(data)
 
-    def pre_register(self, account_id: str, discord_user_id: str) -> bool | None:
-        """ pre registers a user for verification to be registered."""
-        database = self.read()
-        pre_registered = database["pre-registered"]
-        if discord_user_id in database["registered"]:
-            # incase the user is already registered
-            return False
-        elif not discord_user_id in pre_registered:
-            # pre-register
-            pre_registered[discord_user_id] = account_id
-            self.commit(data=database)
-            return True
+    def is_registered(self, discord_id: str) -> bool:
+        """returns whether the discord user is already registered?"""
+        db = self.read()
+        players = db.get("players", {})
+        return discord_id in players
 
-    def verify(self, account_id: str, device_uuid: str) -> bool:
-        """ verifies and registers"""
-        database = self.read()
-        pre_registered = database["pre-registered"]
-        for key, value in list(pre_registered.items()):
-            if value == account_id:
-                database["registered"][key] = {
-                    "account_id": account_id,
-                    "device_uuid": device_uuid
+    def register(
+        self,
+        team_name: str,
+        captain_discord_id: str,
+        captain_account_id: str,
+        invited_members: list = [],
+    ):
+        """registers a team/solo in database."""
+        size = len(invited_members) + 1
+        if self.is_registered(captain_discord_id) or any(
+            self.is_registered(discord_id=discord_id) for discord_id in invited_members
+        ):
+            # if any of them is registered, decline it.
+            return
+
+        db = self.read()
+        team_id = f"team-{len(db['teams'] + 1)}"
+
+        captain = {
+            "account_id": captain_account_id,
+            "device_uuid": "",
+            "discord_id": captain_discord_id,
+        }
+        db["players"][captain_discord_id] = team_id
+        db["players"][captain_account_id] = team_id
+
+        members = [captain]
+        for discord_id in invited_members:
+            members.append(
+                {
+                    "account_id": "",
+                    "device_uuid": "",
+                    "discord_id": discord_id,
                 }
-                del pre_registered[key]
-                self.commit(data=database)
-                return True
+            )
+            db["players"][discord_id] = team_id
 
-        # seems like we did not match any account-id
+        # saving in players dict will help us do team lookup and verification much faster.
+        db["teams"][team_id] = {
+            "name": team_name,
+            "captain": captain_discord_id,
+            "status": TeamStatus.IN_INVITATION if size > 1 else TeamStatus.UNVERIFIED,
+            "members": members,
+        }
+        self.commit(db)
+        return team_id
+
+    def delete(self, team_id: str) -> tuple[str, str]:
+        """deletes the team when someone declines the invitation."""
+        db = self.read()
+        team = db["teams"].get(team_id)
+
+        for member in team["members"]:
+            account_id = member["account_id"]
+            if account_id in db["players"]:
+                del db["players"][account_id]
+            discord_id = member["discord_id"]
+            if discord_id in db["players"]:
+                del db["players"][discord_id]
+
+        captain = team["captain"]
+        name = team["name"]
+        del db["teams"][team_id]
+        self.commit(db)
+        return captain, name
+
+    def accept(self, discord_id: str, account_id: str) -> bool:
+        """accepts invitation from a team."""
+        db = self.read()
+        # lookup team id from players map
+        team_id = db["players"].get(discord_id)
+        if not team_id:
+            return False
+
+        team = db["teams"].get(team_id)
+
+        for member in team["members"]:
+            if member["discord_id"] == discord_id:
+                member["account_id"] = account_id
+
+                # update in players map
+                db["players"][account_id] = team_id
+
+                # check if everyone on the team has joined.
+                if all(m["account_id"] for m in team["members"]):
+                    # update the team status
+                    team["status"] = TeamStatus.UNVERIFIED
+
+                self.commit(db)
+                return True
         return False
 
+    def verify(self, account_id: str, device_uuid: str) -> bool:
+        """verifies the player"""
+        db = self.read()
+        team_id = db["players"].get(account_id)
+        if not team_id:
+            return False
+
+        team = db["teams"].get(team_id)
+
+        for member in team["members"]:
+            if member["account_id"] == account_id:
+                member["device_uuid"] = device_uuid
+
+                # check if everyone on the team has verified.
+                if all(m["device_uuid"] for m in team["members"]):
+                    # update the team status
+                    team["status"] = TeamStatus.VERIFIED
+
+                self.commit(db)
+                return True
+        return False

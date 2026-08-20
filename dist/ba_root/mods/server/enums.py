@@ -39,6 +39,7 @@ class Playlist(IntEnum):
 
 ################# Tournament Enums ####################
 
+
 class TournamentStage(StrEnum):
     REGISTRATION = "REGISTRATION"
     IN_PROGRESS = "IN_PROGRESS"
@@ -46,15 +47,16 @@ class TournamentStage(StrEnum):
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
 
+
 class TournamentType(StrEnum):
-    SOLO = "Solo 1v1"
-    DUO = "Duo 2v2"
-    TRIO = "Trio 3v3"
-    SQUAD = "Squad 4v4"
+    SOLO = "SOLO"
+    DUO = "DUO"
+    TRIO = "TRIO"
+    SQUAD = "SQUAD"
 
     @property
     def count(self) -> int:
-        """Returns the max count of players for a team """
+        """Returns the max count of players for a team"""
         mapping = {
             TournamentType.SOLO: 1,
             TournamentType.DUO: 2,
@@ -63,7 +65,8 @@ class TournamentType(StrEnum):
         }
         return mapping[self]
 
-class SeriesFormat(StrEnum):
+
+class SeriesType(StrEnum):
     BO1 = "BEST_OF_1"
     BO3 = "BEST_OF_3"
     BO5 = "BEST_OF_5"
@@ -71,21 +74,23 @@ class SeriesFormat(StrEnum):
 
     @property
     def count(self) -> int:
-        """Returns the count of series needed for a team to win the match """
+        """Returns the count of series needed for a team to win the match"""
         mapping = {
-            SeriesFormat.BO1: 1,
-            SeriesFormat.BO3: 2,
-            SeriesFormat.BO5: 3,
-            SeriesFormat.BO7: 4,
+            SeriesType.BO1: 1,
+            SeriesType.BO3: 2,
+            SeriesType.BO5: 3,
+            SeriesType.BO7: 4,
         }
         return mapping[self]
+
 
 class MatchStatus(StrEnum):
     PENDING = "PENDING"
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
 
-class Participant(StrEnum):
-    CAP = "CAPTAIN"
-    MEMBER = "MEMBER"
-    SUB = "SUBSTITUTE"
+
+class TeamStatus(StrEnum):
+    IN_INVITATION = "IN_INVITATION"
+    UNVERIFIED = "UNVERIFIED"
+    VERIFIED = "VERIFIED"

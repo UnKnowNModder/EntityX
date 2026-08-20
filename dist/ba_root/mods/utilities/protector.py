@@ -3,11 +3,14 @@ though I'm not unwanted :D (hope so)
 """
 
 from __future__ import annotations
+
+import babase
+import bascenev1
+
+from roles import roles
 from server import config
 from server.clients import Client, all_clients
-from roles import roles
 from server.enums import Role
-import bascenev1, babase
 
 
 class Protector:

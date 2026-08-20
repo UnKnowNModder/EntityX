@@ -1,16 +1,18 @@
-""" all the dataclass schema for tournament. """
+"""all the dataclass schema for tournament."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from server.enums import TournamentStage, SeriesFormat, TournamentType
 from typing import Any
+
+from server.enums import SeriesType, TournamentStage, TournamentType
+
 
 @dataclass
 class SeasonSchema:
     """schema for a unique season."""
 
-    title: str
-    series: SeriesFormat = SeriesFormat.BO3
+    series: SeriesType = SeriesType.BO3
     type: TournamentType = TournamentType.SOLO
     stage: TournamentStage = TournamentStage.REGISTRATION
     created_at: str = ""
@@ -18,8 +20,7 @@ class SeasonSchema:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SeasonSchema:
         return cls(
-            title=data.get("title", "Bombsquad Tournament"),
-            series=SeriesFormat(data.get("series", SeriesFormat.BO3)),
+            series=SeriesType(data.get("series", SeriesType.BO3)),
             type=TournamentType(data.get("type", TournamentType.SOLO)),
             stage=TournamentStage(data.get("stage", TournamentStage.REGISTRATION)),
             created_at=data.get("created_at", ""),
@@ -27,7 +28,6 @@ class SeasonSchema:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "title": self.title,
             "series": self.series,
             "type": self.type,
             "stage": self.stage,
@@ -57,7 +57,6 @@ class TournamentSchema:
         return {
             "active_season": self.active_season,
             "seasons": {
-                season_id: meta.to_dict()
-                for season_id, meta in self.seasons.items()
-            }
+                season_id: meta.to_dict() for season_id, meta in self.seasons.items()
+            },
         }

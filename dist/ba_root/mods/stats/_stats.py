@@ -1,8 +1,10 @@
 """stats storage."""
 
 from __future__ import annotations
-from server.storage import Storage
+
 import bascenev1
+
+from server.storage import Storage
 
 
 class Stats(Storage):

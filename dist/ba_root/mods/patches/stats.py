@@ -1,6 +1,8 @@
-from server import config
 from bascenev1._activitytypes import ScoreScreenActivity
+
+from server import config
 from stats import update_stats
+
 from . import patch_method
 
 

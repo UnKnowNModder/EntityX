@@ -1,9 +1,10 @@
 """the mods loader."""
 
 # ba_meta require api 9
+from traceback import format_exc
+
 import babase
 import bascenev1
-from traceback import format_exc
 
 RED = "\033[31m"
 GREEN = "\033[32m"
@@ -24,13 +25,13 @@ class Load(babase.Plugin):
 
     def _load(self) -> None:
         # necessary imports
-        import server
-        import roles
-        import stats
-        import patches
         import commands
-        import utilities
+        import patches
+        import roles
+        import server
+        import stats
         import tournament
+        import utilities
 
         # boot storages.
         server.config.bootstrap()
@@ -51,8 +52,8 @@ class Load(babase.Plugin):
         # discord bot
         if server.config.discord.enable:
             import discord_bot
+
             discord_bot.load(self)
 
         # reload hooks.
         bascenev1.reload_hooks()
-

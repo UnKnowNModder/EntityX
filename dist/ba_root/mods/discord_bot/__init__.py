@@ -4,16 +4,19 @@ import shutil
 import socket
 import subprocess
 import threading
-import babase
 from pathlib import Path
+
+import babase
+
 from commands import command_line
 from server import config
-from server.clients import Client
-from server.clients import all_clients
+from server.clients import Client, all_clients
 from server.utils import send
 
+
 class SocketTunnel(threading.Thread):
-    """ a socket tunnel to communicate and receive commands from discord bot without interrupting the main game thread and process. """
+    """a socket tunnel to communicate and receive commands from discord bot without interrupting the main game thread and process."""
+
     def __init__(self, port: int):
         super().__init__(daemon=True)
         self.port = port
@@ -35,11 +38,11 @@ class SocketTunnel(threading.Thread):
                     lambda: self._handle_data(data, self.sock, addr),
                     from_other_thread=True,
                 )
-            except (OSError, socket.error):
+            except OSError:
                 break
 
     def _handle_data(self, data: dict, sock: socket.socket, addr: tuple) -> None:
-        """ handles and processes the received data. """
+        """handles and processes the received data."""
         action = data["action"]
         if action == "message":
             send(data["text"], sender=data["sender"])
@@ -53,10 +56,12 @@ class SocketTunnel(threading.Thread):
         elif action == "list":
             response = {"players": []}
             for client in all_clients():
-                response["players"].append({
-                    "name": client.display_string,
-                    "client_id": client.client_id,
-                })
+                response["players"].append(
+                    {
+                        "name": client.display_string,
+                        "client_id": client.client_id,
+                    }
+                )
             sock.sendto(json.dumps(response).encode("utf-8"), addr)
 
     def shutdown(self) -> None:
@@ -74,8 +79,9 @@ class SocketTunnel(threading.Thread):
             # run and cleanly terminate.
             self.join(timeout=1.0)
 
+
 async def shutdown(self) -> None:
-    """ shuts down the process and socket thread."""
+    """shuts down the process and socket thread."""
     print("shutting down discord bot")
     # terminate the process
     if hasattr(self, "process") and self.process and self.process.poll() is None:
@@ -91,8 +97,9 @@ async def shutdown(self) -> None:
         self.socket.shutdown()
         self.socket = None
 
+
 def launch(self) -> None:
-    """ launches the bot. """
+    """launches the bot."""
     # uv is a prerequisite.
     uv_path = shutil.which("uv")
     if not uv_path:
@@ -112,6 +119,7 @@ def launch(self) -> None:
         "python3.13",
         "--with",
         "discord.py",
+        "-B",
         script_path,
     ]
 
@@ -122,11 +130,12 @@ def launch(self) -> None:
     print("Starting discord bot.")
     self.process = subprocess.Popen(cmd, env=env)
 
+
 def load(self) -> None:
-    """ sets up server socket and executes the bot."""
+    """sets up server socket and executes the bot."""
     # firstly, check for a valid discord bot token.
     if config.discord.token == "ENTER-YOUR-BOT-TOKEN-HERE":
-        print(f"Error: Put a valid bot token.")
+        print("Error: Put a valid bot token.")
         return
 
     # execute the bot in a thread (incase uv is not installed.)
@@ -139,6 +148,3 @@ def load(self) -> None:
 
     # add to shutdown task
     babase.app.add_shutdown_task(shutdown(self))
-
-    
-

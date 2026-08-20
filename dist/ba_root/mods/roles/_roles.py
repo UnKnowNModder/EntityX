@@ -1,5 +1,5 @@
+from server.enums import Authority, Role
 from server.storage import Storage
-from server.enums import Role, Authority
 
 
 class Roles(Storage):

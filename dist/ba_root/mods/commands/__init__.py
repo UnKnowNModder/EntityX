@@ -2,10 +2,14 @@
 
 # thanks to snoweee for enlightening me with decorators <3
 from __future__ import annotations
-from server.clients import Players, Client, fetch_client, fetch_player
-from server.enums import Authority
-import importlib, inspect, traceback
+
+import importlib
+import inspect
+import traceback
 from pathlib import Path
+
+from server.clients import Client, Players, fetch_client, fetch_player
+from server.enums import Authority
 
 _commands = {}
 

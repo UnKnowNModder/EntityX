@@ -1,8 +1,12 @@
 """rank system.
 thanks to smoothy and ankit for their honourable work."""
 
-import bascenev1, threading
+import threading
+
+import bascenev1
+
 from server.utils import Text
+
 from ._stats import stats
 
 
@@ -72,4 +76,4 @@ def attach_rank(self, player: bascenev1.Player) -> None:
             Text(self.node, rank)
 
 
-__all__ = ["stats", "attach_rank"]
+__all__ = ["attach_rank", "stats"]

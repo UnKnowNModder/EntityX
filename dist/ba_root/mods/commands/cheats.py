@@ -1,9 +1,11 @@
 """cheat commands."""
 
 from __future__ import annotations
-from . import on_command
+
 from server.clients import Client, Player, Players
 from server.enums import Authority
+
+from . import on_command
 
 
 @on_command(name="/kill", authority=Authority.ADMIN, usage="/kill <index id>")

@@ -1,9 +1,9 @@
 """patches loader plugin"""
 
 import importlib
-from pathlib import Path
 from functools import wraps
 from inspect import signature
+from pathlib import Path
 from typing import Any
 
 

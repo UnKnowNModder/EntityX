@@ -1,8 +1,11 @@
+from collections.abc import Sequence
+
 import bascenev1
 from bascenev1lib.actor import playerspaz
+
 from server import config
-from typing import Sequence
 from stats import attach_rank
+
 from . import patch_method
 
 

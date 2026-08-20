@@ -1,12 +1,17 @@
 """management commands."""
 
 from __future__ import annotations
-from . import on_command
+
+import babase
+import bascenev1
+
+import server
 from roles import roles
-from server.utils import success, send
 from server.clients import Client, Player, fetch_client
 from server.enums import Authority, Playlist, Role, Utility
-import bascenev1, server, babase
+from server.utils import send, success
+
+from . import on_command
 
 
 @on_command(name="/end", aliases=["/over"], authority=Authority.ADMIN)
@@ -115,14 +120,6 @@ def toggle_spectators(client: Client):
     """Toggle spectator mode"""
     status = "enabled" if server.config.toggle(Utility.SPECTATOR) else "disabled"
     success(f"{client.name} has {status} spectators")
-
-
-@on_command(name="/whitelist", aliases=["/wl"], authority=Authority.ADMIN)
-def toggle_whitelist(client: Client):
-    """Toggle whitelist mode"""
-    status = "enabled" if server.config.toggle(Utility.WHITELIST) else "disabled"
-    success(f"{client.name} has {status} whitelist")
-
 
 @on_command(name="/mute", authority=Authority.ADMIN, usage="/mute <client_id>")
 def mute_player(client: Client, target: Client):

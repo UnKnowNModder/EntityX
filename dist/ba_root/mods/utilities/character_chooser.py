@@ -29,23 +29,25 @@ Share this plugin with your server owner /admins  to use it online
 
 from __future__ import annotations
 
-import _babase
 from typing import TYPE_CHECKING
 
+import _babase
 import babase
 import bauiv1 as bui
 from babase._language import Lstr
 
 if TYPE_CHECKING:
-    from typing import Any, List, Dict, Union, Sequence, Optional
+    from collections.abc import Sequence
+    from typing import Any
 import weakref
-from bascenev1._lobby import ChangeMessage, PlayerReadyMessage
+
 from bascenev1 import _lobby
+from bascenev1._lobby import ChangeMessage, PlayerReadyMessage
 from bascenev1lib.actor.spazappearance import *
 
 
 def __init__(
-    self, vpos: float, sessionplayer: bs.SessionPlayer, lobby: "Lobby"
+    self, vpos: float, sessionplayer: bs.SessionPlayer, lobby: Lobby
 ) -> None:
     self._deek_sound = bs.getsound("deek")
     self._click_sound = bs.getsound("click01")
@@ -58,13 +60,13 @@ def __init__(
     self._sessionplayer = sessionplayer
     self._inited = False
     self._dead = False
-    self._text_node: Optional[bs.Node] = None
+    self._text_node: bs.Node | None = None
     self._profilename = ""
-    self._profilenames: List[str] = []
+    self._profilenames: list[str] = []
     self._ready: bool = False
-    self._character_names: List[str] = []
-    self._last_change: Sequence[Union[float, int]] = (0, 0)
-    self._profiles: Dict[str, Dict[str, Any]] = {}
+    self._character_names: list[str] = []
+    self._last_change: Sequence[float | int] = (0, 0)
+    self._profiles: dict[str, dict[str, Any]] = {}
 
     app = babase.app
 

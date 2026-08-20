@@ -1,9 +1,12 @@
 """regular commands."""
 
 from __future__ import annotations
-from . import on_command
-from server.clients import Client, all_clients
+
 import bascenev1
+
+from server.clients import Client, all_clients
+
+from . import on_command
 
 
 @on_command(name="/list", aliases=["/ls"])
@@ -59,7 +62,7 @@ def private_message(client: Client, target: Client, message: str):
 @on_command(name="/ping", aliases=["/ms"])
 def show_ping(client: Client):
     """shows the client's ping"""
-    message = "Your ping: {} ms".format(client.ping)
+    message = f"Your ping: {client.ping} ms"
     client.send(message)
 
 

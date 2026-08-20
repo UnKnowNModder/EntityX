@@ -1,9 +1,11 @@
 """config storage core."""
 
 from __future__ import annotations
+
 import re
+
+from .enums import Playlist, Utility
 from .storage import Storage
-from .enums import Utility, Playlist
 
 
 class ConfigDict(dict):
@@ -23,7 +25,6 @@ class ConfigDict(dict):
             raise AttributeError(f"Config has no setting: {setting}")
 
 
-
 class Config(Storage):
     """config storage class."""
 
@@ -31,10 +32,7 @@ class Config(Storage):
         super().__init__("config.json")
         self.toml = self.directory.parents[2] / "config.toml"
         self.template_file = (
-            self.directory.parents[1]
-            / "ba_data"
-            / "python"
-            / "config_template.json"
+            self.directory.parents[1] / "ba_data" / "python" / "config_template.json"
         )
 
     def bootstrap(self) -> None:

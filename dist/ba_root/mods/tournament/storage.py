@@ -101,7 +101,7 @@ class Registration(Storage):
             return
 
         db = self.read()
-        team_id = f"team-{len(db['teams'] + 1)}"
+        team_id = f"team-{len(db['teams']) + 1}"
 
         captain = {
             "account_id": captain_account_id,

@@ -51,9 +51,9 @@ class Load(babase.Plugin):
 
         # discord bot
         if server.config.discord.enable:
-            import discord_bot
+            from discord_bot import launcher
 
-            discord_bot.load(self)
+            launcher.setup(self=self)
 
         # reload hooks.
         bascenev1.reload_hooks()

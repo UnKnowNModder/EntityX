@@ -17,9 +17,11 @@ from tournament.schema import SeasonSchema
 
 class DiscordBot(commands.Bot):
     def __init__(self) -> None:
+        intents = Intents.default()
+        intents.members = True
         super().__init__(
             command_prefix=[],
-            intents=Intents.default(),
+            intents=intents,
             owner_id=config.discord.owner_id,
         )
 

@@ -7,7 +7,7 @@ from discord import Activity, ActivityType, Intents, Interaction, app_commands
 from discord.ext import commands
 
 from discord_bot.client import GameClient
-from discord_bot.ui import PlayerSelectView, SoloRegistrationModal, TeamInvitationView
+from discord_bot.ui import CaptainRegistrationModal, SoloRegistrationModal, TeamInvitationView
 from roles import roles
 from server import config
 from server.enums import Authority, Role, SeriesType, TournamentType
@@ -116,10 +116,7 @@ class Commands(commands.Cog):
         size = season_data.type.count
         if size > 1:
             # for not-solo seasons
-            view = PlayerSelectView(season_id=season_id, size=size - 1)
-            await interaction.response.send_message(
-                f"This season is {season_data.type}. Select your teammates!", view=view
-            )
+            await interaction.response.send_modal(CaptainRegistrationModal(season_id=season_id, size=size-1))
         else:
             # for solo seasons
             await interaction.response.send_modal(

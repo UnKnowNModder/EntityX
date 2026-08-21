@@ -95,7 +95,7 @@ class Registration(Storage):
         """registers a team/solo in database."""
         size = len(invited_members) + 1
         if self.is_registered(captain_discord_id) or any(
-            self.is_registered(discord_id=discord_id) for discord_id in invited_members
+            self.is_registered(discord_id) for discord_id in invited_members
         ):
             # if any of them is registered, decline it.
             return

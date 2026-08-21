@@ -79,11 +79,11 @@ class Registration(Storage):
             data = {"teams": {}, "players": {}}
             self.commit(data)
 
-    def is_registered(self, discord_id: str) -> bool:
+    def is_registered(self, id: str) -> bool:
         """returns whether the discord user is already registered?"""
         db = self.read()
         players = db.get("players", {})
-        return discord_id in players
+        return id in players
 
     def register(
         self,
@@ -177,7 +177,7 @@ class Registration(Storage):
                 return True
         return False
 
-    def verify(self, account_id: str, device_uuid: str) -> bool:
+    def verify(self, account_id: str, device_uuid: str) -> bool | None:
         """verifies the player"""
         db = self.read()
         team_id = db["players"].get(account_id)
@@ -188,6 +188,9 @@ class Registration(Storage):
 
         for member in team["members"]:
             if member["account_id"] == account_id:
+                # case: the guy is already verified
+                if member["device_uuid"]:
+                    return None
                 member["device_uuid"] = device_uuid
 
                 # check if everyone on the team has verified.

@@ -43,7 +43,7 @@ class DiscordBot(commands.Bot):
 
         # change presence and sync slash commands.
         await self.change_presence(
-            activity=Activity(type=ActivityType.watching, name="Bombsquad")
+            activity=Activity(type=ActivityType.listening, name="Zzzzzz....")
         )
         for guild in self.guilds:
             self.tree.clear_commands(guild=guild)

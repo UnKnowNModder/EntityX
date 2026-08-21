@@ -19,4 +19,7 @@ def verify(client: Client):
     if status:
         client.success("You have been successfully verified.")
         return
+    if status is None:
+        client.error("You are already verified.")
+        return
     client.error("You have not registered from discord server yet.")

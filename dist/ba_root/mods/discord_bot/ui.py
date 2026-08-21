@@ -27,6 +27,11 @@ class SoloRegistrationModal(ui.Modal, title="Tournament Solo Registration."):
     async def on_submit(self, interaction: Interaction):
         registration = Registration(self.season_id)
 
+        # case: check if account-id is already registered
+        if registration.is_registered(self.account_id.value):
+            await interaction.response.send_message("The account-id is already registered.", ephemeral=True)
+            return
+
         # for solo, we use user's display name as team name.
         team_name = interaction.user.display_name
         team_id = registration.register(
@@ -80,6 +85,11 @@ class CaptainRegistrationModal(ui.Modal, title="Tournament Team Registration."):
     async def on_submit(self, interaction: Interaction):
         registration = Registration(self.season_id)
 
+        # case: check if account-id is already registered
+        if registration.is_registered(self.account_id.value):
+            await interaction.response.send_message("The account-id is already registered.", ephemeral=True)
+            return
+
         invited_members = self.select.component.values
 
         team_id = registration.register(
@@ -129,6 +139,11 @@ class InvitationAcceptModal(ui.Modal, title="Accept Team Invitation."):
 
     async def on_submit(self, interaction: Interaction):
         registration = Registration(self.season_id)
+
+        # case: check if account-id is already registered
+        if registration.is_registered(self.account_id.value):
+            await interaction.response.send_message("The account-id is already registered.", ephemeral=True)
+            return
 
         success = registration.accept(
             discord_id=str(interaction.user.id), account_id=self.account_id.value

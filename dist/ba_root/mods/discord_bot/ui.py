@@ -163,7 +163,7 @@ class TeamInvitationView(ui.View):
     async def accept_btn(self, interaction: Interaction, button: ui.Button):
         season_id = tournament.read().active_season
         db = Registration(season_id=season_id).read()
-        user_team_id = db["players"].get(interaction.user.id)
+        user_team_id = db["players"].get(str(interaction.user.id))
         team_id = interaction.data["custom_id"].split(";")[2]
         team = db["teams"].get(team_id)
 
@@ -187,7 +187,7 @@ class TeamInvitationView(ui.View):
     async def decline_btn(self, interaction: Interaction, button: ui.Button):
         season_id = tournament.read().active_season
         db = Registration(season_id=season_id).read()
-        user_team_id = db["players"].get(interaction.user.id)
+        user_team_id = db["players"].get(str(interaction.user.id))
         team_id = interaction.data["custom_id"].split(";")[2]
         team = db["teams"].get(team_id)
 

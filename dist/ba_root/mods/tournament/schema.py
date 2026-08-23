@@ -40,6 +40,7 @@ class TournamentSchema:
     """Schema for all the seasons."""
 
     active_season: str = "0"
+    registrations_status: bool = False
     seasons: dict[str, SeasonSchema] = field(default_factory=dict)
 
     @classmethod
@@ -51,11 +52,12 @@ class TournamentSchema:
             for season_id, meta in seasons.items()
             if isinstance(meta, dict)
         }
-        return cls(active_season=active_season, seasons=parsed_seasons)
+        return cls(active_season=active_season, registrations_status=data.get("registrations_status", False),seasons=parsed_seasons)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "active_season": self.active_season,
+            "registrations_status": self.registrations_status,
             "seasons": {
                 season_id: meta.to_dict() for season_id, meta in self.seasons.items()
             },

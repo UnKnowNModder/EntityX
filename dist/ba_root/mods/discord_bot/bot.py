@@ -12,6 +12,7 @@ from roles import roles
 from server import config
 from server.enums import Authority, Role, SeriesType, TournamentType
 from tournament import tournament
+from tournament.storage import Registration
 from tournament.schema import SeasonSchema
 
 
@@ -108,8 +109,12 @@ class Commands(commands.Cog):
         season_id = db.active_season
         if not int(season_id):
             await interaction.response.send_message(
-                "There is no tournament ongoing.", ephemeral=True
+                "There is no tournament season opened currently.", ephemeral=True
             )
+            return
+
+        if not tournament.are_registrations_open:
+            await interaction.response.send_message("Registrations have been closed", ephemeral=True)
             return
 
         season_data = tournament.get_season(season_id=season_id)
@@ -122,6 +127,19 @@ class Commands(commands.Cog):
             await interaction.response.send_modal(
                 SoloRegistrationModal(season_id=season_id)
             )
+
+    @app_commands.command(name="registrations")
+    @app_commands.describe(option="Open or close the registrations")
+    @require(Authority.LEADER)
+    async def registrations(self, interaction: Interaction, option: bool) -> None:
+        """ open/close the registrations"""
+        if option:
+            tournament.open_registrations()
+        else:
+            tournament.close_registrations()
+
+        await interaction.response.send_message(f"{'Opened' if option else 'closed'} the registrations.")
+
 
     @app_commands.command(name="say")
     @app_commands.describe(message="The text to send")

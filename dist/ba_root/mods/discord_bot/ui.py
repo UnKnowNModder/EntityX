@@ -201,7 +201,8 @@ class TeamInvitationView(ui.View):
     @ui.button(label="Decline", style=ButtonStyle.danger)
     async def decline_btn(self, interaction: Interaction, button: ui.Button):
         season_id = tournament.read().active_season
-        db = Registration(season_id=season_id).read()
+        registration = Registration(season_id=season_id)
+        db = registration.read()
         user_team_id = db["players"].get(str(interaction.user.id))
         team_id = interaction.data["custom_id"].split(";")[2]
         team = db["teams"].get(team_id)
@@ -228,7 +229,7 @@ class TeamInvitationView(ui.View):
                 await user.remove_roles(role)
 
         # delete the team.
-        captain, team_name = db.delete(team_id=team_id)
+        captain, team_name = registration.delete(team_id=team_id)
 
         # disable the btns
         for child in self.children:

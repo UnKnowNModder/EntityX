@@ -7,7 +7,7 @@ from server.enums import TeamStatus
 from server.storage import Storage
 from tournament.schema import SeasonSchema, TournamentSchema
 
-SEASONS_DIR = Path("tournament") / "Seasons"
+SEASONS_DIR = Path("tournament") / "seasons"
 
 
 class Tournament(Storage):
@@ -62,9 +62,24 @@ class Tournament(Storage):
         data.seasons[season_id] = season
         self.commit(data)
 
+    @property
+    def are_registrations_open(self):
+        """ as the name says"""
+        return self.read().registrations_status
+
+    def open_registrations(self):
+        """ opens the registrations. """
+        db = self.read()
+        db.registrations_status = True
+        self.commit(db)
+
+    def close_registrations(self):
+        """ closes the registrations. """
+        db = self.read()
+        db.registrations_status = False
+        self.commit(db)
 
 tournament = Tournament()
-
 
 class Registration(Storage):
     """storage class for registration"""

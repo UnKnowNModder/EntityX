@@ -1,0 +1,226 @@
+""" storage for brackets
+"""
+
+from server.storage import Storage
+from tournament.storage import SEASONS_DIR
+from server.enums import Status
+
+class Brackets(Storage):
+    """ generates brackets and handles the rounds. """
+
+    def __init__(self, season_id: str):
+        super().__init__("brackets.json", SEASONS_DIR / season_id)
+        self.group_stage_path = self.directory / "group-stage.json"
+        self.bootstrap()
+
+    def bootstrap(self):
+        """ creates the file"""
+        if not self.path.exists():
+            database = {
+                "active_round": "",
+                "total_rounds": 0,
+            }
+            self.commit(database)
+
+    def generate_group_stage(self, teams: dict):
+        """ generates the group stage brackets. """
+         # we assume that the total number of teams is even.
+        teams_count = len(teams)
+        groups_count = teams_count & -teams_count
+        
+        # ah we dont want the groups to be only two, round-robin will make it longer otherwise or the teams count is less than 4
+        assert groups_count >= 4
+        if groups_count == teams_count:
+            # the number is power of 2 value
+            # we go straight to the main stage
+            self.generate_main_stage(teams=teams)
+            return
+
+        # mhm.. groups are needed now.
+        groups = {}
+        main_stage_capacity = (1 << (teams_count.bit_length() - 1))
+        teams_per_group = teams_count // groups_count
+        teams_list = list(teams.items())
+
+        # calculates the number of winning teams needed out of each group
+        winning_teams_per_group =  main_stage_capacity // groups_count
+
+        for index in range(groups_count):
+            groups[f"group_{index+1}"] = dict(rounds=self.generate_round_robin(teams_list[index * teams_per_group:(index + 1 ) * teams_per_group], count=teams_per_group), standings=[])
+
+        # we have the rounds of each group now.
+        # let's save them into their database file.
+        database = {
+            "status": Status.IN_PROGRESS,
+            "groups": groups,
+            "winning_teams_per_group": winning_teams_per_group
+        }
+
+        self.commit(data=database, external_path=self.group_stage_path)
+
+        # also update it in brackets.json that groupstage is active;
+        brackets = self.read()
+        brackets["active_round"] = "group-stage"
+        brackets["total_rounds"] += 1
+        self.commit(brackets)
+
+
+    def generate_round_robin(self, teams: list, count: int) -> dict:
+        """ generates rounds robin for teams. """
+        rounds = {}
+
+        # if the teams count is odd.. we can add an empty team and then remove it while making rounds.
+        if count % 2 != 0:
+            teams = teams + [None]
+            count += 1
+
+        for round in range(1, count):
+            round_matches = {}
+            # for each round.
+            for i in range(count // 2):
+
+                first = teams[i] # first in sense of next front.
+                last = teams[count - 1 - i] # last in sense of previous back.
+
+                # only append if both teams are valid.
+                if first is not None and last is not None:
+                    round_matches[f"m{i+1}"] = self.create_match_format(team1=first, team2=last)
+
+            rounds[f"round {round}"] = {
+                "matches": round_matches,
+                "status": Status.IN_PROGRESS if round == 1 else Status.PENDING
+            }
+
+            # shuffle it so the teams dont get matched up with the same team twice.
+            teams = [teams[0]] + [teams[-1]] + teams[1:-1]
+        return rounds
+
+    def generate_first_round(self, teams: dict | list, winning_teams_per_group: int = 0) -> dict:
+        " generate first round of the main-stage."
+        pairings = []
+        if isinstance(teams, list):
+            # there was no group stage before main-stage.
+            import random
+            shuffled_teams = teams.copy()
+            random.shuffle(shuffled_teams)
+
+            # make the pairings.
+            for i in range(0, len(teams), 2):
+                pairings.append((shuffled_teams[i], shuffled_teams[i + 1]))
+
+        else:
+            # there was a group stage.. so the teams dict is actually the dict of groups.
+            groups = teams.copy()
+            groups_keys = list(groups.keys())
+            groups_count = len(groups_keys)
+            offset = groups_count // 2
+
+            for i in range(groups_count):
+                front_group = groups_keys[i]
+                back_group = groups_keys[(i + offset) % groups_count]
+
+                for index in range(winning_teams_per_group // 2):
+                    team1 = groups[front_group]["standings"][index]
+                    team2 = groups[back_group]["standings"][winning_teams_per_group - 1 - index]
+                    pairings.append((team1, team2))
+
+
+        # we have the pairings now.
+        matches = {}
+        for index, (t1, t2) in enumerate(pairings, start=1):
+            matches[f"m{index}"] = self.create_match_format(team1=t1, team2=t2)
+
+        return {
+            "matches": matches,
+            "status": Status.IN_PROGRESS
+        }
+
+    def generate_main_stage(self, teams: dict):
+        """ generates the main stage"""
+        brackets = self.read()
+
+        if teams:
+            # there was no group stage before us.
+            round_data = self.generate_first_round(list(teams.items()))
+        else:
+            # there was a group stage before us.
+            # to make the match to be fair, we will shuffle them first to last; like we did for group-stage matches
+            # but only once per team.
+            gs = self.read(external_path=self.group_stage_path)
+            round_data = self.generate_first_round(gs["groups"], gs["winning_teams_per_group"])
+
+        round_name = self.get_round_name(len(round_data["matches"]) * 2)
+        brackets["total_rounds"] += 1
+        brackets["active_round"] = round_name
+        file_path = (self.directory / round_name).with_suffix(".json")
+        self.commit(round_data, external_path=file_path)
+        self.commit(brackets)
+
+    def generate_next_round(self):
+        """ generates the next rounds of main-stage"""
+        brackets = self.read()
+        current_round_path = (self.directory / brackets["active_round"]).with_suffix(".json")
+        current_round_data = self.read(current_round_path)
+        if current_round_data["status"] != Status.COMPLETED:
+            # the round did not complete. we cannot generate the next.
+            return
+
+        matches_data = current_round_data["matches"]
+        next_matches = {}
+
+        winners = [match["winner"] for match in matches_data.values()]
+
+        if len(winners) == 2:
+            # we just finished semi-finals.
+            # finals has two matches.. first is for 1st/2nd position between semi-finals winners
+            # second is for 3rd position between semi-finals losers
+            losers = [match["loser"] for match in matches_data.values()]
+
+            next_matches["FINALS"] = self.create_match_format(team1=winners[0], team2=winners[1])
+            next_matches["THIRD_PLACE"] = self.create_match_format(team1=losers[0], team2=losers[1])
+
+        else:
+            # standard rounds.
+            match_count = 1
+            for i in range(0, len(winners), 2):
+                next_matches[f"m{match_count}"] = self.create_match_format(team1=winners[i], team2=winners[i+1])
+                match_count += 1
+
+        next_round_data = {
+            "matches": next_matches,
+            "status": Status.IN_PROGRESS
+        }
+        next_round_name = self.get_round_name(len(winners))
+        next_round_path = (self.directory / next_round_name).with_suffix(".json")
+        self.commit(next_round_data, next_round_path)
+        brackets["active_round"] = next_round_name
+        brackets["total_rounds"] += 1
+        self.commit(brackets)
+
+
+    def get_round_name(self, count: int) -> str:
+        """ returns the round-name by teams-count"""
+        if count >= 16:
+            return f"round-of-{count}"
+        elif count == 8:
+            return "quarter-finals"
+        elif count == 4:
+            return "semi-finals"
+        else:
+            return "finals"
+
+    def create_match_format(
+            self,
+            team1: dict,
+            team2: dict,
+    ) -> dict:
+        """ match format. """
+        return {
+            "team1": team1,
+            "team2": team2,
+            "score1": 0,
+            "score2": 0,
+            "winner": None,
+            "loser": None,
+            "status": Status.PENDING,
+        }

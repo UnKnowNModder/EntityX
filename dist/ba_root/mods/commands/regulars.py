@@ -31,13 +31,13 @@ def show_stats(client: Client) -> None:
     """shows the client his stats."""
     from stats import stats
 
-    if stats := stats.get(client.account_id):
+    if _stats := stats.get(client.account_id):
         message = "{} | score: {} | kills: {} | deaths: {} | games: {}".format(
-            stats["rank"],
-            stats["score"],
-            stats["kills"],
-            stats["deaths"],
-            stats["games"],
+            _stats["rank"],
+            _stats["score"],
+            _stats["kills"],
+            _stats["deaths"],
+            _stats["games"],
         )
         client.send(message, sender="rank")
         return

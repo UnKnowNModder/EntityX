@@ -2,15 +2,37 @@
 
 from server.clients import Client
 from tournament import tournament
-from tournament.storage import Registration
+from tournament.manager import manager
+from tournament.registration import Registration
 
 from . import on_command
+
+
+@on_command(name="/ready")
+def ready(client: Client):
+    """marks the player as ready and starts the match if everyone is ready."""
+    season_id = tournament.active_season
+    if not int(season_id):
+        client.error("There is no tournament ongoing.")
+        return
+    response = manager.handle_player_ready(account_id=client.account_id)
+    if response["status"] == "success":
+        client.success(response["message"])
+        if response.get("start", False):
+            from server.utils import success
+
+            success(
+                message=f"Tournament match between {manager.active_match['team_names'][0]} and {manager.active_match['team_names'][1]} is starting in 2 seconds."
+            )
+        return
+    if response["status"] == "error":
+        client.error(response["message"])
 
 
 @on_command(name="/verify")
 def verify(client: Client):
     """verifies the player in their team."""
-    season_id = tournament.read().active_season
+    season_id = tournament.active_season
     if not int(season_id):
         client.error("There is no tournament ongoing.")
         return

@@ -29,16 +29,19 @@ class Load(babase.Plugin):
         import patches
         import roles
         import server
-        import stats
         import tournament
+        import stats
         import utilities
 
         # boot storages.
         server.config.bootstrap()
         roles.roles.bootstrap()
         roles.auth.bootstrap()
-        stats.stats.bootstrap()
         tournament.tournament.bootstrap()
+        stats.stats.bootstrap()
+
+        # the tournament manager.
+        tournament.manager.initialize(season_id=tournament.tournament.active_season)
 
         # load patches.
         patches.load()

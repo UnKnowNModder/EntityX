@@ -94,10 +94,3 @@ class TeamStatus(StrEnum):
     IN_INVITATION = "IN_INVITATION"
     UNVERIFIED = "UNVERIFIED"
     VERIFIED = "VERIFIED"
-
-
-class Points(IntEnum):
-    """ the points awarded to team. """
-    WIN = 3
-    TIE = 0
-    LOSE = -1

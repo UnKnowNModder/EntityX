@@ -48,7 +48,7 @@ class RefreshStats(threading.Thread):
     def run(self) -> None:
         data = stats.read()
         for account_id, score in self.scores.items():
-            if account_id not in stats:
+            if account_id not in data:
                 # this user is new, we need to register him.
                 data[account_id] = {
                     "name": self.names.get(account_id, "??"),

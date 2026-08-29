@@ -121,6 +121,7 @@ def toggle_spectators(client: Client):
     status = "enabled" if server.config.toggle(Utility.SPECTATOR) else "disabled"
     success(f"{client.name} has {status} spectators")
 
+
 @on_command(name="/mute", authority=Authority.ADMIN, usage="/mute <client_id>")
 def mute_player(client: Client, target: Client):
     """Mute player"""

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from discord import ButtonStyle, Interaction, User, ui
+from discord import ButtonStyle, Interaction, ui
 from discord.utils import get
 
 from tournament import tournament
-from tournament.storage import Registration
+from tournament.registration import Registration
 
 # registration modal for solo player to input his game account id.
 
@@ -29,7 +29,9 @@ class SoloRegistrationModal(ui.Modal, title="Tournament Solo Registration."):
 
         # case: check if account-id is already registered
         if registration.is_registered(self.account_id.value):
-            await interaction.response.send_message("The account-id is already registered.", ephemeral=True)
+            await interaction.response.send_message(
+                "The account-id is already registered.", ephemeral=True
+            )
             return
 
         # for solo, we use user's display name as team name.
@@ -74,11 +76,9 @@ class CaptainRegistrationModal(ui.Modal, title="Tournament Team Registration."):
         self.season_id = season_id
         self.select = ui.Label(
             text="Select your teammates",
-            component= ui.UserSelect(
-                placeholder=f"Select {size}",
-                min_values=size,
-                max_values=size
-            )
+            component=ui.UserSelect(
+                placeholder=f"Select {size}", min_values=size, max_values=size
+            ),
         )
         self.add_item(self.select)
 
@@ -87,7 +87,9 @@ class CaptainRegistrationModal(ui.Modal, title="Tournament Team Registration."):
 
         # case: check if account-id is already registered
         if registration.is_registered(self.account_id.value):
-            await interaction.response.send_message("The account-id is already registered.", ephemeral=True)
+            await interaction.response.send_message(
+                "The account-id is already registered.", ephemeral=True
+            )
             return
 
         invited_members = self.select.component.values
@@ -142,7 +144,9 @@ class InvitationAcceptModal(ui.Modal, title="Accept Team Invitation."):
 
         # case: check if account-id is already registered
         if registration.is_registered(self.account_id.value):
-            await interaction.response.send_message("The account-id is already registered.", ephemeral=True)
+            await interaction.response.send_message(
+                "The account-id is already registered.", ephemeral=True
+            )
             return
 
         success = registration.accept(
@@ -176,7 +180,7 @@ class TeamInvitationView(ui.View):
 
     @ui.button(label="Accept", style=ButtonStyle.success)
     async def accept_btn(self, interaction: Interaction, button: ui.Button):
-        season_id = tournament.read().active_season
+        season_id = tournament.active_season
         db = Registration(season_id=season_id).read()
         user_team_id = db["players"].get(str(interaction.user.id))
         team_id = interaction.data["custom_id"].split(";")[2]
@@ -200,7 +204,7 @@ class TeamInvitationView(ui.View):
 
     @ui.button(label="Decline", style=ButtonStyle.danger)
     async def decline_btn(self, interaction: Interaction, button: ui.Button):
-        season_id = tournament.read().active_season
+        season_id = tournament.active_season
         registration = Registration(season_id=season_id)
         db = registration.read()
         user_team_id = db["players"].get(str(interaction.user.id))
@@ -224,18 +228,18 @@ class TeamInvitationView(ui.View):
         # strip all the members of role.
         for member in team["members"]:
             discord_id = member["discord_id"]
-            user = interaction.guild.get_member(discord_id)
+            user = interaction.guild.get_member(int(discord_id))
             if user and role in user.roles:
                 await user.remove_roles(role)
 
         # delete the team.
-        captain, team_name = registration.delete(team_id=team_id)
+        captain = registration.delete(team_id=team_id)
 
         # disable the btns
         for child in self.children:
             child.disabled = True
 
         await interaction.response.edit_message(
-            f"**Invitation Declined**, {interaction.user.mention} declined the invitation for team {team_name}. CAPTAIN: <@{captain}>",
+            f"**Invitation Declined**, {interaction.user.mention} declined the invitation for team {team_id}. CAPTAIN: <@{captain}>",
             view=self,
         )

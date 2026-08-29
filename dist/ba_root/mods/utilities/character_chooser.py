@@ -46,9 +46,7 @@ from bascenev1._lobby import ChangeMessage, PlayerReadyMessage
 from bascenev1lib.actor.spazappearance import *
 
 
-def __init__(
-    self, vpos: float, sessionplayer: bs.SessionPlayer, lobby: Lobby
-) -> None:
+def __init__(self, vpos: float, sessionplayer: bs.SessionPlayer, lobby: Lobby) -> None:
     self._deek_sound = bs.getsound("deek")
     self._click_sound = bs.getsound("click01")
     self._punchsound = bs.getsound("punch01")

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from server import config
 from server.storage import Storage
@@ -15,22 +15,23 @@ class Auth(Storage):
         if not config.otp_verification.enable:
             return
 
-        today = datetime.now().date()
+        ist = timezone(timedelta(hours=5, minutes=30))
+        today = datetime.now(ist)
         future_deletion = today + timedelta(days=config.otp_verification.days)
         # check if file exists
         if not self.path.exists():
             # we need to make one.
-            data = {"deletion": future_deletion.strftime("%Y-%m-%d"), "authentic": []}
+            data = {"deletion": future_deletion.isoformat(), "authentic": []}
             self.commit(data)
             return
 
         # exists, we need to check for deletion time.
         data = self.read()
-        deletion = datetime.strptime(data["deletion"], "%Y-%m-%d").date()
+        deletion = datetime.fromisoformat(data["deletion"])
         if today >= deletion:
             # your time has come, HAHWHSHAHAHA.
             data["authentic"] = []
-            data["deletion"] = future_deletion.strftime("%Y-%m-%d")
+            data["deletion"] = future_deletion.isoformat()
             self.commit(data)
 
     def authenticate(self, account_id: str) -> bool:

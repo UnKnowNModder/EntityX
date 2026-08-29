@@ -7,12 +7,15 @@ from discord import Activity, ActivityType, Intents, Interaction, app_commands
 from discord.ext import commands
 
 from discord_bot.client import GameClient
-from discord_bot.ui import CaptainRegistrationModal, SoloRegistrationModal, TeamInvitationView
+from discord_bot.ui import (
+    CaptainRegistrationModal,
+    SoloRegistrationModal,
+    TeamInvitationView,
+)
 from roles import roles
 from server import config
 from server.enums import Authority, Role, SeriesType, TournamentType
 from tournament import tournament
-from tournament.storage import Registration
 from tournament.schema import SeasonSchema
 
 
@@ -84,7 +87,7 @@ class Commands(commands.Cog):
         self, interaction: Interaction, type: TournamentType, series: SeriesType
     ) -> None:
         """creates a tournament season"""
-        if int(tournament.read().active_season):
+        if int(tournament.active_season):
             await interaction.response.send_message(
                 "Cannot create! a season is going on."
             )
@@ -95,7 +98,7 @@ class Commands(commands.Cog):
         ist = timezone(timedelta(hours=5, minutes=30))
 
         schema = SeasonSchema(
-            series=series, type=type, created_at=str(datetime.now(ist))
+            series=series, type=type, created_at=datetime.now(ist).isoformat()
         )
         tournament.create_season(schema=schema)
         await interaction.response.send_message(
@@ -105,8 +108,7 @@ class Commands(commands.Cog):
     @app_commands.command(name="participate")
     async def participate(self, interaction: Interaction) -> None:
         """participate in tournament"""
-        db = tournament.read()
-        season_id = db.active_season
+        season_id = tournament.active_season
         if not int(season_id):
             await interaction.response.send_message(
                 "There is no tournament season opened currently.", ephemeral=True
@@ -114,14 +116,18 @@ class Commands(commands.Cog):
             return
 
         if not tournament.are_registrations_open:
-            await interaction.response.send_message("Registrations have been closed", ephemeral=True)
+            await interaction.response.send_message(
+                "Registrations have been closed", ephemeral=True
+            )
             return
 
         season_data = tournament.get_season(season_id=season_id)
         size = season_data.type.count
         if size > 1:
             # for not-solo seasons
-            await interaction.response.send_modal(CaptainRegistrationModal(season_id=season_id, size=size-1))
+            await interaction.response.send_modal(
+                CaptainRegistrationModal(season_id=season_id, size=size - 1)
+            )
         else:
             # for solo seasons
             await interaction.response.send_modal(
@@ -132,14 +138,15 @@ class Commands(commands.Cog):
     @app_commands.describe(option="Open or close the registrations")
     @require(Authority.LEADER)
     async def registrations(self, interaction: Interaction, option: bool) -> None:
-        """ open/close the registrations"""
+        """open/close the registrations"""
         if option:
             tournament.open_registrations()
         else:
             tournament.close_registrations()
 
-        await interaction.response.send_message(f"{'Opened' if option else 'closed'} the registrations.")
-
+        await interaction.response.send_message(
+            f"{'Opened' if option else 'closed'} the registrations."
+        )
 
     @app_commands.command(name="say")
     @app_commands.describe(message="The text to send")

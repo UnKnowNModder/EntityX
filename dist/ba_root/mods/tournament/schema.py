@@ -52,7 +52,11 @@ class TournamentSchema:
             for season_id, meta in seasons.items()
             if isinstance(meta, dict)
         }
-        return cls(active_season=active_season, registrations_status=data.get("registrations_status", False),seasons=parsed_seasons)
+        return cls(
+            active_season=active_season,
+            registrations_status=data.get("registrations_status", False),
+            seasons=parsed_seasons,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {

@@ -5,6 +5,7 @@ from __future__ import annotations
 import bascenev1
 
 from server.storage import Storage
+from tournament.storage import SEASONS_DIR
 
 
 class Stats(Storage):
@@ -12,6 +13,7 @@ class Stats(Storage):
 
     def __init__(self) -> None:
         super().__init__("stats.json", "stats")
+        self.tournament_path = SEASONS_DIR
         self.top = []
 
     def bootstrap(self) -> None:
@@ -24,9 +26,13 @@ class Stats(Storage):
         stats = self.read()
         return stats.get(account_id, None)
 
-    def sort(self) -> dict[str, dict]:
+    def sort(self, tournament: bool = False) -> None:
         """sorts the stats in descending order."""
-        stats = self.read()
+        if tournament:
+            stats = self.read(external_path=self.tournament_path)
+        else:
+            self.top.clear()
+            stats = self.read()
         sorted_raw = sorted(
             stats.items(),
             key=lambda item: (
@@ -38,14 +44,17 @@ class Stats(Storage):
             reverse=True,
         )
         sorted_stats = {}
-        self.top.clear()
         for rank, (account_id, data) in enumerate(sorted_raw, start=1):
-            if rank <= 3:
+            if rank <= 3 and not tournament:
                 self.top.append(data["name"])
             data = dict(data)  # copying to avoid mutating og ref.
             data["rank"] = rank
             sorted_stats[account_id] = data
-        self.commit(sorted_stats)
+
+        if tournament:
+            self.commit(sorted_stats, external_path=self.tournament_path)
+        else:
+            self.commit(sorted_stats)
 
     def leaderboard(self, owner: bascenev1.Node | None) -> None:
         """leaderboard for top rankers."""

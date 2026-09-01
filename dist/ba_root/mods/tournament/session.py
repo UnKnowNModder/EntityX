@@ -20,7 +20,7 @@ class TournamentSession(DualTeamSession):
     def on_team_join(self, team: bascenev1.Team) -> None:
         super().on_team_join(team)
         # change the team name to their actual team name.
-        team.name = self.manager.active_match["team_names"][team.id]
+        team.name = self.manager.active_match["teams"][team.id]
 
     @override
     def on_player_request(self, player: bascenev1.SessionPlayer):
@@ -56,7 +56,7 @@ class TournamentSession(DualTeamSession):
                 return
             team = msg.chooser.team
             identifier = player.get_account_id()
-            if team.name != next(iter(self.manager.players[identifier][1])):
+            if team.name != self.manager.players[identifier][1]:
                 # if this is not the team of the player, we move him into his team.
                 msg.chooser.handlemessage(ChangeMessage("team", 1))
                 return
@@ -95,21 +95,23 @@ class TournamentSession(DualTeamSession):
                 if not hasattr(winner, "series"):
                     winner.series = 0
                 winner.series += 1
-
-                if winner.series >= tournament.series_length:
-                    if not hasattr(loser, "score"):
-                        loser.score = 0
-
-                    utils.success(
-                        message=f"Match concluded. Winner: {winner.name}, Loser: {loser.name}"
-                    )
-                    self.manager.conclude_active_match(winner, loser)
                 self.setactivity(
                     bascenev1.newactivity(
                         TeamSeriesVictoryScoreScreenActivity,
                         {"winner": winner},
                     )
                 )
+
+                if winner.series >= tournament.series_length:
+                    if not hasattr(loser, "score"):
+                        loser.score = 0
+                    if not hasattr(loser, "series"):
+                        loser.series = 0
+
+                    utils.success(
+                        message=f"Match concluded. Winner: {winner.name}, Loser: {loser.name}"
+                    )
+                    self.manager.conclude_active_match(winner, loser)
             else:
                 self.setactivity(
                     bascenev1.newactivity(

@@ -11,7 +11,11 @@
         "enable": false,
         "token": "ENTER-YOUR-BOT-TOKEN-HERE",
         "port": 9001,
-        "owner_id": 0
+        "owner_id": 0,
+        "webhooks": {
+            "dashboard": "ENTER-YOUR-WEBHOOK-URL-HERE",
+            "results": "ENTER-YOUR-WEBHOOK-URL-HERE"
+        }
     },
     "whitelist": false,
     "spectator": true,

@@ -29,19 +29,26 @@ def ready(client: Client):
         client.error(response["message"])
 
 
-@on_command(name="/verify")
-def verify(client: Client):
+@on_command(name="/verify", usage="/verify <code>")
+def verify(client: Client, args: list[str]):
     """verifies the player in their team."""
     season_id = tournament.active_season
     if not int(season_id):
         client.error("There is no tournament ongoing.")
         return
     registration = Registration(season_id=season_id)
-    status = registration.verify(client.account_id, device_uuid=client.public_uuid)
+    if registration.is_registered(client.account_id):
+        client.error("You are already registered.")
+        return
+
+    code = args[0]
+    status = registration.verify(
+        code, client.account_id, device_uuid=client.public_uuid
+    )
     if status:
         client.success("You have been successfully verified.")
         return
     if status is None:
-        client.error("You are already verified.")
+        client.error("The code is invalid.")
         return
     client.error("You have not registered from discord server yet.")

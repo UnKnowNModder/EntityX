@@ -5,6 +5,8 @@ from pathlib import Path
 from server.enums import Status
 from server.storage import Storage
 from tournament.storage import SEASONS_DIR
+from tournament.registration import Registration
+from tournament.webhook import Webhook
 
 
 class Brackets(Storage):
@@ -12,11 +14,14 @@ class Brackets(Storage):
 
     def __init__(self, season_id: str):
         super().__init__("brackets.json", SEASONS_DIR / season_id)
+        self.season_id = season_id
         self.group_stage_path = self.directory / "group-stage.json"
         self.bootstrap()
 
     def bootstrap(self):
-        """creates the file"""
+        """creates the file and setups up method"""
+        self.registration = Registration(self.season_id)
+        self.webhook = Webhook(self.season_id)
         if not self.path.exists():
             database = {
                 "active_round": "",
@@ -24,7 +29,7 @@ class Brackets(Storage):
             }
             self.commit(database)
 
-    def generate_group_stage(self, teams: dict):
+    def generate_group_stage(self, teams: list):
         """generates the group stage brackets."""
         # we assume that the total number of teams is even.
         teams_count = len(teams)
@@ -42,7 +47,6 @@ class Brackets(Storage):
         groups = {}
         main_stage_capacity = 1 << (teams_count.bit_length() - 1)
         teams_per_group = teams_count // groups_count
-        teams_list = list(teams.items())
 
         # calculates the number of winning teams needed out of each group
         winning_teams_per_group = main_stage_capacity // groups_count
@@ -50,7 +54,7 @@ class Brackets(Storage):
         for index in range(groups_count):
             groups[f"group_{index + 1}"] = {
                 "rounds": self.generate_round_robin(
-                    teams_list[index * teams_per_group : (index + 1) * teams_per_group],
+                    teams[index * teams_per_group : (index + 1) * teams_per_group],
                     count=teams_per_group,
                 ),
                 "standings": [],
@@ -135,6 +139,7 @@ class Brackets(Storage):
 
         # recalculate the standings
         self.recalculate_group_standings(group=group)
+        self.send_group_stage_standings(group_key=group_key, standings=group["standings_sorted"], winning_teams_per_group=gs["winning_teams_per_group"])
 
         # check if the whole groupstage is completed.
         if all(
@@ -179,7 +184,9 @@ class Brackets(Storage):
             current_round_data["status"] = Status.COMPLETED
             # commit now because next round will check the status of the current round.
             self.commit(current_round_data, external_path=current_round_path)
-            # load the next round.
+            # load the next round only if finals has not been completed.
+            if current_round_path.name == "finals.json":
+                return
             self.generate_ms_next_round()
             return
 
@@ -194,11 +201,10 @@ class Brackets(Storage):
         for round in group["rounds"].values():
             for match in round["matches"].values():
                 # add to stats
-                for team in (match["team1"], match["team2"]):
-                    team_id = team["id"]
+                for team_id in (match["team1"], match["team2"]):
                     if team_id not in stats:
                         stats[team_id] = {
-                            "team": team,
+                            "id": team_id,
                             "wins": 0,
                             "loses": 0,
                             "points": 0,
@@ -212,8 +218,8 @@ class Brackets(Storage):
             for match in round["matches"].values():
                 if match["status"] != Status.COMPLETED:
                     continue
-                t1 = match["team1"]["id"]
-                t2 = match["team2"]["id"]
+                t1 = match["team1"]
+                t2 = match["team2"]
                 s1, s2 = match["score1"], match["score2"]
 
                 stats[t1]["rounds_won"] += s1
@@ -240,9 +246,59 @@ class Brackets(Storage):
             reverse=True,
         )
 
-        group["standings"] = [team["team"] for team in sorted_teams]
+        group["standings"] = [team["id"] for team in sorted_teams]
         # this will come in help for showing the stats on leaderboard.
         group["standings_sorted"] = sorted_teams
+
+    def send_group_stage_standings(self, group_key: str, standings: list, winning_teams_per_group: int) -> None:
+        """sends the group stage standings to discord webhook."""
+
+        # building the payload for the webhook.
+        row_template = "{rank:<2} {team:<10} {pts:<3} {wl:<4} {rw:<3} {diff:>5}"
+        header = row_template.format(
+            rank="#", team="Team", pts="Pts", wl="W-L", rw="RW", diff="Diff"
+        )
+        separator = "-" * len(header)
+        standings_header = [header, separator]
+
+        for index, team in enumerate(standings, start=1):
+                standings_header.append(
+                    row_template.format(
+                        rank=index,
+                        team=team["id"][:10],
+                        pts=team["points"],
+                        wl=team["wins"] - team["loses"],
+                        rw=team["wins"],
+                        diff=team["diff"],
+                    )
+                )
+
+        body = "\n".join(standings_header)
+        payload = {
+            "embeds": [
+                {
+                    "title": f"Group {group_key} Standings - Season {self.season_id}",
+                    "image": {
+                        "url": "https://cdn.discordapp.com/attachments/1539651471383986287/1543948505079488532/file_00000000656c82118b8a6c325fdcc35e.png?ex=6a980b18&is=6a96b998&hm=478f1273c9a682fadd849c0ed1359d8790e526fc9f47b1b9912516e32edde383&"
+                    },
+                    "description": f"```text\n{body}\n```\nTop {winning_teams_per_group} teams will advance to the main stage.",
+                    "color": 10167990,
+                    "footer": {
+                        "text": "Pts: Points, W-L: Wins-Losses, RW: Rounds Won, Diff: Round Difference",
+                    },
+                }
+            ]
+        }
+        # firstly check if there have been a message sent for this group.
+        data = self.webhook.get(group_key)
+        if data:
+            # there is a message already sent.
+            # we will edit it.
+            self.webhook.edit(group_key, payload)
+            return
+
+        # no message has been sent for this group yet.
+        self.webhook.send("dashboard", group_key, payload)
 
     def generate_first_round(
         self, teams: dict | list, winning_teams_per_group: int = 0
@@ -285,13 +341,13 @@ class Brackets(Storage):
 
         return {"matches": matches, "status": Status.IN_PROGRESS}
 
-    def generate_main_stage(self, teams: dict = {}):
+    def generate_main_stage(self, teams: dict = []):
         """generates the main stage"""
         brackets = self.read()
 
         if teams:
             # there was no group stage before us.
-            round_data = self.generate_first_round(list(teams.items()))
+            round_data = self.generate_first_round(teams)
         else:
             # there was a group stage before us.
             # to make the match to be fair, we will shuffle them first to last; like we did for group-stage matches
@@ -304,16 +360,14 @@ class Brackets(Storage):
         round_name = self.get_round_name(len(round_data["matches"]) * 2)
         brackets["total_rounds"] += 1
         brackets["active_round"] = round_name
-        file_path = (self.directory / round_name).with_suffix(".json")
-        self.commit(round_data, external_path=file_path)
         self.commit(brackets)
+        file_path = self.get_active_round_path()
+        self.commit(round_data, external_path=file_path)
 
     def generate_ms_next_round(self):
         """generates the next rounds of main-stage"""
         brackets = self.read()
-        current_round_path = (self.directory / brackets["active_round"]).with_suffix(
-            ".json"
-        )
+        current_round_path = self.get_active_round_path()
         current_round_data = self.read(current_round_path)
         if current_round_data["status"] != Status.COMPLETED:
             # the round did not complete. we cannot generate the next.
@@ -348,11 +402,35 @@ class Brackets(Storage):
 
         next_round_data = {"matches": next_matches, "status": Status.IN_PROGRESS}
         next_round_name = self.get_round_name(len(winners))
-        next_round_path = (self.directory / next_round_name).with_suffix(".json")
-        self.commit(next_round_data, next_round_path)
         brackets["active_round"] = next_round_name
         brackets["total_rounds"] += 1
         self.commit(brackets)
+        next_round_path = self.get_active_round_path()
+        self.commit(next_round_data, next_round_path)
+
+    def announce_tournament_completion(self) -> None:
+        """announces the tournament completion."""
+        from tournament import tournament
+        db = tournament.read()
+        db.active_season = "0"
+        tournament.commit(db)
+        
+        payload = {
+            "embeds": [
+                {
+                    "title": f"Tournament Completed - Season {self.season_id}",
+                    "image": {
+                        "url": "https://cdn.discordapp.com/attachments/1539651471383986287/1543948505490399232/file_0000000083708211964990ed39276938.png?ex=6a980b18&is=6a96b998&hm=ab034dd8a40dfb01dac8022655d25f29ccf4a4cdc8acdd735cec19261471b44d&"
+                    },
+                    "description": f"**Tournament has been completed. Congratulations to all the participants.**",
+                    "color": 10167990,
+                    "footer": {
+                        "text": "Thanks for playing this tournament <3",
+                    },
+                }
+            ]
+        }
+        self.webhook.send("results", "tournament_completion", payload)
 
     def get_active_round_path(self) -> Path:
         """returns the active round path."""
@@ -370,10 +448,14 @@ class Brackets(Storage):
         else:
             return "finals"
 
+    def get_team(self, team_id: str) -> dict:
+        """returns the full team information dict."""
+        return self.registration.read()["teams"].get(team_id, {})
+
     def create_match_format(
         self,
-        team1: dict,
-        team2: dict,
+        team1: str,
+        team2: str,
     ) -> dict:
         """match format."""
         return {

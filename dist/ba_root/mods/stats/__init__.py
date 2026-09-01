@@ -10,7 +10,7 @@ from server.utils import Text
 from ._stats import stats
 
 
-def update_stats(stats: bascenev1.Stats) -> None:
+def update_stats(stats: bascenev1.Stats, tournament: bool = False) -> None:
     """does what the name says, duh."""
     rec_scores = {}
     rec_kills = {}
@@ -31,22 +31,26 @@ def update_stats(stats: bascenev1.Stats) -> None:
             rec_names.setdefault(account_id, player.getname(True, True))
     if rec_scores:
         RefreshStats(
-            rec_scores, rec_kills, rec_deaths, rec_names
+            rec_scores, rec_kills, rec_deaths, rec_names, tournament
         ).start()  # to decrease load, we run a thread to be safe.
 
 
 class RefreshStats(threading.Thread):
     """refreshes and sorts the stats for rank."""
 
-    def __init__(self, scores, kills, deaths, names) -> None:
+    def __init__(self, scores, kills, deaths, names, tournament) -> None:
         super().__init__()
         self.scores = scores
         self.kills = kills
         self.deaths = deaths
         self.names = names
+        self.tournament = tournament
 
     def run(self) -> None:
-        data = stats.read()
+        if self.tournament:
+            data = stats.read(external_path=stats.tournament_path)
+        else:
+            data = stats.read()
         for account_id, score in self.scores.items():
             if account_id not in data:
                 # this user is new, we need to register him.
@@ -61,9 +65,14 @@ class RefreshStats(threading.Thread):
             data[account_id]["kills"] += self.kills[account_id]
             data[account_id]["deaths"] += self.deaths[account_id]
             data[account_id]["games"] += 1
-        stats.commit(data)
-        # sort the stats
-        stats.sort()
+        if self.tournament:
+            stats.commit(data, external_path=stats.tournament_path)
+            # sort the stats
+            stats.sort(tournament=True)
+        else:
+            stats.commit(data)
+            # sort the stats
+            stats.sort()
 
 
 def attach_rank(self, player: bascenev1.Player) -> None:

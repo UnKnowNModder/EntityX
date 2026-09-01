@@ -8,55 +8,8 @@ from discord.utils import get
 from tournament import tournament
 from tournament.registration import Registration
 
-# registration modal for solo player to input his game account id.
 
-
-class SoloRegistrationModal(ui.Modal, title="Tournament Solo Registration."):
-    """asks for in-game account-id only."""
-
-    account_id = ui.TextInput(
-        label="Enter your V2 Account ID",
-        required=True,
-        placeholder="looks like: a-xxx..",
-    )
-
-    def __init__(self, season_id: str):
-        super().__init__()
-        self.season_id = season_id
-
-    async def on_submit(self, interaction: Interaction):
-        registration = Registration(self.season_id)
-
-        # case: check if account-id is already registered
-        if registration.is_registered(self.account_id.value):
-            await interaction.response.send_message(
-                "The account-id is already registered.", ephemeral=True
-            )
-            return
-
-        # for solo, we use user's display name as team name.
-        team_name = interaction.user.display_name
-        team_id = registration.register(
-            team_name=team_name,
-            captain_discord_id=str(interaction.user.id),
-            captain_account_id=self.account_id.value,
-        )
-
-        if not team_id:
-            await interaction.response.send_message(
-                "You are already registered in this season.", ephemeral=True
-            )
-            return
-
-        role = get(interaction.guild.roles, name="Participant")
-        await interaction.user.add_roles(role)
-        await interaction.response.send_message(
-            f"Registered as {team_name}! Join the game server and run `/verify` to verify yourself. ",
-            ephemeral=True,
-        )
-
-
-# registration modal for team-captain to input his game account id and team-name
+# registration modal for team-captain to input his  team-name and select team members.
 
 
 class CaptainRegistrationModal(ui.Modal, title="Tournament Team Registration."):
@@ -64,11 +17,6 @@ class CaptainRegistrationModal(ui.Modal, title="Tournament Team Registration."):
 
     team_name = ui.TextInput(
         label="Team Name", required=True, placeholder="Enter an unique team name."
-    )
-    account_id = ui.TextInput(
-        label="Enter your V2 Account ID",
-        required=True,
-        placeholder="looks like: a-xxx..",
     )
 
     def __init__(self, season_id: str, size: int):
@@ -86,24 +34,25 @@ class CaptainRegistrationModal(ui.Modal, title="Tournament Team Registration."):
         registration = Registration(self.season_id)
 
         # case: check if account-id is already registered
-        if registration.is_registered(self.account_id.value):
+        if registration.is_registered(str(interaction.user.id)):
             await interaction.response.send_message(
-                "The account-id is already registered.", ephemeral=True
+                "You are already registered.", ephemeral=True
             )
             return
 
         invited_members = self.select.component.values
+        code = registration.generate_code()
 
         team_id = registration.register(
             team_name=self.team_name.value,
             captain_discord_id=str(interaction.user.id),
-            captain_account_id=self.account_id.value,
+            captain_code=code,
             invited_members=[str(member.id) for member in invited_members],
         )
 
         if not team_id:
             await interaction.response.send_message(
-                "Failed to register your team! You or one of your teammates might already be registered.",
+                "Failed to register your team! one of your teammates might already be registered.",
                 ephemeral=True,
             )
             return
@@ -118,53 +67,10 @@ class CaptainRegistrationModal(ui.Modal, title="Tournament Team Registration."):
             view=view,
         )
         await interaction.response.send_message(
-            f"Team **{self.team_name.value}** created! Invitation sent to your teammates.! Join the game server and run `/verify` to verify yourself. ",
+            f"Team **{self.team_name.value}** created! Invitation sent to your teammates.! Join the game server and run `/verify {code}` to verify yourself. Your code is given below.",
             ephemeral=True,
         )
-
-
-# invitation accept modal for team-mates to input their game id.
-
-
-class InvitationAcceptModal(ui.Modal, title="Accept Team Invitation."):
-    """asks for in-game account-id only."""
-
-    account_id = ui.TextInput(
-        label="Enter your V2 Account ID",
-        required=True,
-        placeholder="looks like: a-xxx..",
-    )
-
-    def __init__(self, season_id: str):
-        super().__init__()
-        self.season_id = season_id
-
-    async def on_submit(self, interaction: Interaction):
-        registration = Registration(self.season_id)
-
-        # case: check if account-id is already registered
-        if registration.is_registered(self.account_id.value):
-            await interaction.response.send_message(
-                "The account-id is already registered.", ephemeral=True
-            )
-            return
-
-        success = registration.accept(
-            discord_id=str(interaction.user.id), account_id=self.account_id.value
-        )
-
-        if not success:
-            await interaction.response.send_message(
-                "You are not registered in any team.", ephemeral=True
-            )
-            return
-
-        role = get(interaction.guild.roles, name="Participant")
-        await interaction.user.add_roles(role)
-        await interaction.response.send_message(
-            "You have joined the team! Join the game server and run `/verify` to verify yourself. ",
-            ephemeral=True,
-        )
+        await interaction.followup.send(code, ephemeral=True)
 
 
 # team invitation view for teammates to accept/reject
@@ -181,7 +87,8 @@ class TeamInvitationView(ui.View):
     @ui.button(label="Accept", style=ButtonStyle.success)
     async def accept_btn(self, interaction: Interaction, button: ui.Button):
         season_id = tournament.active_season
-        db = Registration(season_id=season_id).read()
+        registration = Registration(season_id=season_id)
+        db = registration.read()
         user_team_id = db["players"].get(str(interaction.user.id))
         team_id = interaction.data["custom_id"].split(";")[2]
         team = db["teams"].get(team_id)
@@ -198,9 +105,28 @@ class TeamInvitationView(ui.View):
             )
             return
 
-        await interaction.response.send_modal(
-            InvitationAcceptModal(season_id=season_id)
+        if registration.is_registered(str(interaction.user.id)):
+            await interaction.response.send_message(
+                "You are already registered.", ephemeral=True
+            )
+            return
+
+        code = registration.generate_code()
+
+        success = registration.accept(discord_id=str(interaction.user.id), code=code)
+        if not success:
+            await interaction.response.send_message(
+                "You are not registered in any team.", ephemeral=True
+            )
+            return
+
+        role = get(interaction.guild.roles, name="Participant")
+        await interaction.user.add_roles(role)
+        await interaction.response.send_message(
+            f"You have joined the team! Join the game server and run `/verify {code}` to verify yourself. Your code is given below.",
+            ephemeral=True,
         )
+        await interaction.followup.send(code, ephemeral=True)
 
     @ui.button(label="Decline", style=ButtonStyle.danger)
     async def decline_btn(self, interaction: Interaction, button: ui.Button):

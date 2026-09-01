@@ -4,6 +4,7 @@ import bascenev1
 
 from server.enums import Status
 from tournament.brackets import Brackets
+from tournament.webhook import Webhook
 
 
 class Manager:
@@ -18,7 +19,9 @@ class Manager:
 
     def initialize(self, season_id: str):
         """initializes the manager."""
+        self.season_id = season_id
         self.brackets = Brackets(season_id=season_id)
+        self.webhook = Webhook(season_id=season_id)
         self.load_pending_matches()
 
     def load_pending_matches(self):
@@ -74,9 +77,9 @@ class Manager:
             for player in players:
                 self.players[player] = [match_key, team]
 
-    def extract_from_team_players(self, team: dict, key: str) -> list:
+    def extract_from_team_players(self, team: str, key: str) -> list:
         """extracts the key from team dict players."""
-        return [member[key] for member in next(iter(team.values()))["members"]]
+        return [member[key] for member in self.brackets.get_team(team=team)["members"]]
 
     def handle_player_ready(self, account_id: str) -> dict:
         """handles the player ready event."""
@@ -99,7 +102,6 @@ class Manager:
             self.active_match = {
                 "match_key": match_key,
                 "players": match["players"],
-                "team_names": [next(iter(match["team1"])), next(iter(match["team2"]))],
                 "teams": [match["team1"], match["team2"]],
                 "group_key": match["group_key"],
                 "round_key": match["round_key"],
@@ -126,12 +128,14 @@ class Manager:
         if account_id in self.ready_players.get(match_key, set()):
             self.ready_players[match_key].remove(account_id)
 
-    def conclude_active_match(self, winner: bascenev1.SessionTeam, loser: bascenev1.SessionTeam) -> None:
+    def conclude_active_match(
+        self, winner: bascenev1.SessionTeam, loser: bascenev1.SessionTeam
+    ) -> None:
         """concludes the active match."""
         if not self.active_match:
             return
 
-        if self.active_match["team_names"].index(winner.name) == 0:
+        if self.active_match["teams"].index(winner.name) == 0:
             score1, score2 = winner.score, loser.score
         else:
             score1, score2 = loser.score, winner.score
@@ -152,12 +156,95 @@ class Manager:
                 match_key=match_key, score1=score1, score2=score2
             )
 
+        self.send_results(winner, loser, f"{group_key}-{round_key}-{match_key}")
         self.end_tournament_session()
+
+    def send_players_dashboard(self) -> None:
+        """sends the players dashboard."""
+        row_template = "{rank:<2} {name:<10} {score:<3} {kills:<4} {deaths:<3} {games:>5}"
+        header = row_template.format(
+            rank="#", name="Name", score="Score", kills="Kills", deaths="Deaths", games="Games"
+        )
+        separator = "-" * len(header)
+        standings_header = [header, separator]
+        from stats import stats
+        standings = list(stats.read().values())
+
+        for index, player in enumerate(standings, start=1):
+            standings_header.append(
+                row_template.format(
+                    rank=index,
+                    name=player["name"][:10],
+                    score=player["score"],
+                    kills=player["kills"],
+                    deaths=player["deaths"],
+                    games=player["games"],
+                )
+            )
+        body = "\n".join(standings_header)
+        payload = {
+            "embeds": [
+                {
+                    "title": f"Players Standings - Season {self.season_id}",
+                    "image": {
+                        "url": "https://cdn.discordapp.com/attachments/1539651471383986287/1543948505079488532/file_00000000656c82118b8a6c325fdcc35e.png?ex=6a980b18&is=6a96b998&hm=478f1273c9a682fadd849c0ed1359d8790e526fc9f47b1b9912516e32edde383&"
+                    },
+                    "description": f"```text\n{body}\n```",
+                    "color": 10167990,
+                    "footer": {
+                        "text": "Updated after every match. Thank you for playing this tournament <3",
+                    },
+                }
+            ]
+        }
+
+        data = self.webhook.get("players-standings")
+        if data:
+            # there is a message already sent.
+            # we will edit it.
+            self.webhook.edit("players-standings", payload)
+            return
+
+        # no message has been sent for this dashboard yet.
+        self.webhook.send("dashboard", "players-standings", payload)
+
+    def send_results(self, winner: bascenev1.SessionTeam, loser: bascenev1.SessionTeam, key: str) -> None:
+        webhook_payload = {
+            "embeds": [
+                {
+                    "color": 10167990,
+                    "footer": {"text": f"Thank You for playing this match <3 [Season {self.season_id}]"},
+                    "image": {
+                        "url": "https://cdn.discordapp.com/attachments/1539651471383986287/1543948505490399232/file_0000000083708211964990ed39276938.png?ex=6a980b18&is=6a96b998&hm=ab034dd8a40dfb01dac8022655d25f29ccf4a4cdc8acdd735cec19261471b44d&"
+                    },
+                    "fields": [
+                        {"name": "", "value": "", "inline": True},
+                        {"name": f"{self.active_match['teams'][0]} vs {self.active_match['teams'][1]}", "value": "", "inline": True},
+                        {"name": "", "value": "", "inline": True},
+                        {"name": "WINNER:", "value": winner.name, "inline": True},
+                        {"name": "", "value": "", "inline": True},
+                        {"name": "LOSER:", "value": loser.name, "inline": True},
+                        {"name": "", "value": "", "inline": True},
+                        {
+                            "name": "SERIES SCORE:",
+                            "value": f"{winner.series} vs {loser.series}",
+                            "inline": True,
+                        },
+                        {"name": "", "value": "", "inline": True},
+                        {"name": "SCORE:", "value": str(winner.score), "inline": True},
+                        {"name": "", "value": "", "inline": True},
+                        {"name": "SCORE:", "value": str(loser.score), "inline": True},
+                    ],
+                }
+            ]
+        }
+        self.webhook.send("results", key, webhook_payload)
+        
 
     def start_tournament_session(self) -> None:
         """starts the tournament session."""
         # set os env to stop server from restarting in between a match.
-        os.environ["BA_SERVER_RESTART"] = "0"
+        os.environ["BA_TOURNAMENT_MATCH"] = self.season_id
         from .activity import TournamentTransitionActivity
 
         session = bascenev1.get_foreground_host_session()
@@ -166,7 +253,9 @@ class Manager:
 
     def end_tournament_session(self) -> None:
         """ends the tournament session."""
+        self.send_players_dashboard()
         with bascenev1.ContextRef.empty():
             bascenev1.apptimer(10.0, bascenev1.app.classic.server._execute_shutdown)
+
 
 manager = Manager()

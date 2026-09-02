@@ -120,7 +120,7 @@ class Manager:
 
     def handle_player_leave(self, account_id: str) -> None:
         """handles the player leaving."""
-        match_key = self.players.get(account_id)[0]
+        match_key = self.players.get(account_id, [None, None])[0]
         if not match_key:
             return
 

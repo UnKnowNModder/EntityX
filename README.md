@@ -7,29 +7,32 @@
 [![Discord](https://img.shields.io/badge/Discord-Join%20Chat-7289DA?style=for-the-badge&logo=discord&logoColor=white&labelColor=7289DA)](https://discord.gg/yrYqbSU7wT)
 
 # Installation:
-### one-line installation.
+### Quick one-line installation
 ```
 curl -fsSL https://install.thecardinal.workers.dev | bash
 ```
 
-- you may now change config.toml to your needs.
+- you may now change mods_config.json to your liking.
 
-### open a tmux session
+### Cd into the directory
+```
+cd EntityX
+```
+
+### Open a tmux session (you should always do this when starting the server)
 ```
 tmux
 ```
 
 ### Run the server.
-- note: the mods_config.json will be created after the first run. so run it first time and kill the process using ```mgr.shutdown()``` and configure your settings there and run again.
 ```
 ./bombsquad_server
 ```
 
 # Discord bot:
-- it requires uv (the script will download automatically if you don't have it installed)
 - runs the bot on a second process. (the server won't lag)
 - uses socket tunnel to pass the payload through.
-- you can toggle the bot and configure the owner-id and bot token in config.json found in dist/ba_root/mods/
+- you can toggle the bot and configure the owner-id and bot token in mods_config.json
 
 ## bot commands
 - /cmd <enter your chat-command to be send to game server.> (it runs according to the authority of the user.)

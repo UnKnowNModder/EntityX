@@ -123,6 +123,15 @@ VERSION_STR = '1.3.6'
 #
 #  - Initial release.
 
+import sysconfig
+
+# passes the current python lib dir to the LD_LIBRARY_PATH env var so we can find the correct libs.
+# this is needed because we are using uv.
+py_lib_dir = sysconfig.get_config_var("LIBDIR")
+if py_lib_dir:
+    current_ld = os.environ.get("LD_LIBRARY_PATH", "")
+    os.environ["LD_LIBRARY_PATH"] = f"{py_lib_dir}:{current_ld}" if current_ld else py_lib_dir
+
 def is_aarch() -> bool:
     """Return whether we're running on an aarch64 platform."""
     return os.uname().machine.lower() in ('aarch64', 'arm64')

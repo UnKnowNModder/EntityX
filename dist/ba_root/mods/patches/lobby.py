@@ -30,7 +30,7 @@ def on_player_request(self, player: bascenev1.SessionPlayer, og_result) -> bool:
 @patch_method(bascenev1.DualTeamSession, "on_player_leave", initial=True)
 def on_player_leave(self, player: bascenev1.SessionPlayer) -> None:
     identifier = self._player_requested_identifiers.get(player.id)
-    if identifier and tournament.active_season:
+    if identifier and int(tournament.active_season):
         from tournament.manager import manager
 
         manager.handle_player_leave(identifier)

@@ -92,11 +92,17 @@ class Brackets(Storage):
                 first = teams[i]  # first in sense of next front.
                 last = teams[count - 1 - i]  # last in sense of previous back.
 
-                # only append if both teams are valid.
-                if first is not None and last is not None:
-                    round_matches[f"m{i + 1}"] = self.create_match_format(
-                        team1=first, team2=last
-                    )
+                match = self.create_match_format(
+                    team1=first, team2=last
+                )
+
+                # if one of them is None, we give them BYEs.
+                if first is None or last is None:
+                    match["status"] = Status.COMPLETED
+                    match["winner"] = first if last is None else last
+                    match["loser"] = None
+
+                round_matches[f"m{i + 1}"] = match
 
             rounds[f"round {round}"] = {
                 "matches": round_matches,
@@ -450,7 +456,7 @@ class Brackets(Storage):
 
     def get_team(self, team_id: str) -> dict:
         """returns the full team information dict."""
-        return self.registration.read()["teams"].get(team_id, {})
+        return self.registration.read()["teams"][team_id]
 
     def create_match_format(
         self,

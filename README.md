@@ -7,25 +7,12 @@
 [![Discord](https://img.shields.io/badge/Discord-Join%20Chat-7289DA?style=for-the-badge&logo=discord&logoColor=white&labelColor=7289DA)](https://discord.gg/yrYqbSU7wT)
 
 # Installation:
-### Install dependencies
+### one-line installation.
 ```
-sudo apt-get update
-sudo apt-get install -y software-properties-common
-sudo add-apt-repository -y ppa:deadsnakes/ppa
-sudo apt-get update
-sudo apt-get install -y python3.13 python3.13-dev python3.13-venv
-```
-### Clone the repository
-```
-git clone https://github.com/UnKnowNModder/EntityX.git
+curl -fsSL https://install.thecardinal.workers.dev | bash
 ```
 
 - you may now change config.toml to your needs.
-
-### cd into the directory
-```
-cd EntityX
-```
 
 ### open a tmux session
 ```
@@ -33,7 +20,7 @@ tmux
 ```
 
 ### Run the server.
-- note: the config.json will be created after the first run. so run it first time and kill the process using ```mgr.shutdown()``` and configure your settings there and run again.
+- note: the mods_config.json will be created after the first run. so run it first time and kill the process using ```mgr.shutdown()``` and configure your settings there and run again.
 ```
 ./bombsquad_server
 ```

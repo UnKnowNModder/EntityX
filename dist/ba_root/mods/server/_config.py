@@ -30,9 +30,12 @@ class Config(Storage):
 
     def __init__(self) -> None:
         super().__init__("config.json")
-        self.toml = self.directory.parents[2] / "config.toml"
+        # our mods config file should stay in the root of the project folder.
+        project_root_dir = self.directory.parents[2]
+        self.path = project_root_dir / "mods_config.json"
+        self.toml = project_root_dir / "config.toml"
         self.template_file = (
-            self.directory.parents[1] / "ba_data" / "python" / "config_template.json"
+            self.directory.parents[1] / "ba_data" / "python" / "mods_config_template.json"
         )
 
     def bootstrap(self) -> None:

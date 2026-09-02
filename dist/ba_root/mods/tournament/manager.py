@@ -28,9 +28,11 @@ class Manager:
         """load all pending matches from the database."""
         round_path = self.brackets.get_active_round_path()
         round_data = self.brackets.read(round_path)
+        if not round_data:
+            return
 
         # if the round is groupstage;
-        if round_path.name == "group-stage":
+        if round_path.name == "group-stage.json":
             for g_key, group in round_data["groups"].items():
                 for r_key, round in group["rounds"].items():
                     if round["status"] == Status.IN_PROGRESS:
@@ -79,7 +81,7 @@ class Manager:
 
     def extract_from_team_players(self, team: str, key: str) -> list:
         """extracts the key from team dict players."""
-        return [member[key] for member in self.brackets.get_team(team=team)["members"]]
+        return [member[key] for member in self.brackets.get_team(team_id=team)["members"]]
 
     def handle_player_ready(self, account_id: str) -> dict:
         """handles the player ready event."""

@@ -41,7 +41,8 @@ class Load(babase.Plugin):
         stats.stats.bootstrap()
 
         # the tournament manager.
-        tournament.manager.initialize(season_id=tournament.tournament.active_season)
+        from tournament import manager
+        manager.manager.initialize(season_id=tournament.tournament.active_season)
 
         # load patches.
         patches.load()

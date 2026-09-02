@@ -9,9 +9,9 @@ from discord.ext import commands
 from discord_bot.client import GameClient
 from discord_bot.ui import (
     CaptainRegistrationModal,
-    SoloRegistrationModal,
     TeamInvitationView,
 )
+from traceback import format_exc
 from roles import roles
 from server import config
 from server.enums import Authority, Role, SeriesType, TournamentType
@@ -39,7 +39,7 @@ class DiscordBot(commands.Bot):
     ) -> None:
         if isinstance(error, app_commands.CheckFailure):
             return
-        print(f"Discord: error: {error}")
+        print(f"Discord: An error occurred while executing the command: {format_exc()}")
 
     async def on_ready(self):
         """the bot is ready"""
@@ -151,7 +151,7 @@ class Commands(commands.Cog):
                 )
                 return
 
-            role = discord.utilsget(interaction.guild.roles, name="Participant")
+            role = discord.utils.get(interaction.guild.roles, name="Participant")
             await interaction.user.add_roles(role)
             await interaction.response.send_message(
                 f"Registered as {interaction.user.display_name}! Join the game server and run `/verify {code}` to verify yourself. Your code is given below.",
@@ -193,7 +193,7 @@ class Commands(commands.Cog):
         from tournament.brackets import Brackets
 
         brackets = Brackets(season_id=tournament.active_season)
-        if brackets.path.exists():
+        if brackets.read()["active_round"]:
             await interaction.response.send_message(
                 "Cannot start the brackets! brackets are already started.",
                 ephemeral=True,
@@ -204,7 +204,14 @@ class Commands(commands.Cog):
         # we need to generate the brackets.
         registration = Registration(season_id=brackets.season_id)
         teams = list(registration.read()["teams"].keys())
-        brackets.generate_group_stage(teams=teams)
+        try:
+            brackets.generate_group_stage(teams=teams)
+        except AssertionError:
+            await interaction.response.send_message(
+                "The number of teams are either odd or less than 4. The brackets cannot be generated.",
+                ephemeral=True,
+            )
+            return
         await interaction.response.send_message(
             "The brackets have been started!", ephemeral=True
         )

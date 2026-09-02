@@ -100,26 +100,22 @@ async def shutdown(self) -> None:
 
 def launch(self) -> None:
     """launches the bot."""
-    # uv is a prerequisite.
+    # UPDATE: uv is now installed by the installer.
     uv_path = shutil.which("uv")
-    if not uv_path:
-        # uv does not exist.. we need to install it.
-        print("Error: uv is not installed\n Installing it now...")
-        cmd = ["sh", "-c", "curl -LsSf https://astral.sh/uv/install.sh | sh"]
-        subprocess.run(cmd, check=True, capture_output=True)
-        print("Success: downloaded uv successfullly")
-        uv_path = shutil.which("uv")
+
+    # check if discord.py is installed.
+    try:
+        import discord
+    except ImportError:
+        # quietly install it.
+        subprocess.run([uv_path, "add", "discord.py"], check=True)
 
     # run the bot script using uv
     script_path = str(Path(__file__).resolve().parent / "bot.py")
     cmd = [
         uv_path,
         "run",
-        "--python",
-        "python3.13",
-        "--with",
-        "discord.py",
-        script_path,
+        script_path
     ]
 
     # we need to pass env for the file to be able to import from sister folders.

@@ -5,7 +5,7 @@ import bascenev1
 from server.enums import Status
 from tournament.brackets import Brackets
 from tournament.webhook import Webhook
-
+from tournament.graphics import runner
 
 class Manager:
     """manager class for tournament matches."""
@@ -139,8 +139,10 @@ class Manager:
 
         if self.active_match["teams"].index(winner.name) == 0:
             score1, score2 = winner.score, loser.score
+            series1, series2 = winner.series, loser.series
         else:
             score1, score2 = loser.score, winner.score
+            series1, series2 = loser.series, winner.series
         match_key = self.active_match["match_key"]
         group_key = self.active_match["group_key"]
         round_key = self.active_match["round_key"]
@@ -158,94 +160,36 @@ class Manager:
                 match_key=match_key, score1=score1, score2=score2
             )
 
-        self.send_results(winner, loser, f"{group_key}-{round_key}-{match_key}")
+        self.send_results(winner, loser, series1, series2, f"{group_key}-{round_key}-{match_key}")
         self.end_tournament_session()
 
     def send_players_dashboard(self) -> None:
         """sends the players dashboard."""
-        row_template = "{rank:<2} {name:<10} {score:<3} {kills:<4} {deaths:<3} {games:>5}"
-        header = row_template.format(
-            rank="#", name="Name", score="Score", kills="Kills", deaths="Deaths", games="Games"
-        )
-        separator = "-" * len(header)
-        standings_header = [header, separator]
-        from stats import stats
-        standings = list(stats.read().values())
-
-        for index, player in enumerate(standings, start=1):
-            standings_header.append(
-                row_template.format(
-                    rank=index,
-                    name=player["name"][:10],
-                    score=player["score"],
-                    kills=player["kills"],
-                    deaths=player["deaths"],
-                    games=player["games"],
-                )
-            )
-        body = "\n".join(standings_header)
-        payload = {
-            "embeds": [
-                {
-                    "title": f"Players Standings - Season {self.season_id}",
-                    "image": {
-                        "url": "https://cdn.discordapp.com/attachments/1539651471383986287/1543948505079488532/file_00000000656c82118b8a6c325fdcc35e.png?ex=6a980b18&is=6a96b998&hm=478f1273c9a682fadd849c0ed1359d8790e526fc9f47b1b9912516e32edde383&"
-                    },
-                    "description": f"```text\n{body}\n```",
-                    "color": 10167990,
-                    "footer": {
-                        "text": "Updated after every match. Thank you for playing this tournament <3",
-                    },
-                }
-            ]
+        data = {
+            "type": "player-standings",
+            "season_id": self.season_id,
         }
+        runner.run(data=data)
 
-        data = self.webhook.get("players-standings")
-        if data:
-            # there is a message already sent.
-            # we will edit it.
-            self.webhook.edit("players-standings", payload)
-            return
-
-        # no message has been sent for this dashboard yet.
-        self.webhook.send("dashboard", "players-standings", payload)
-
-    def send_results(self, winner: bascenev1.SessionTeam, loser: bascenev1.SessionTeam, key: str) -> None:
-        webhook_payload = {
-            "embeds": [
-                {
-                    "color": 10167990,
-                    "footer": {"text": f"Thank You for playing this match <3 [Season {self.season_id}]"},
-                    "image": {
-                        "url": "https://cdn.discordapp.com/attachments/1539651471383986287/1543948505490399232/file_0000000083708211964990ed39276938.png?ex=6a980b18&is=6a96b998&hm=ab034dd8a40dfb01dac8022655d25f29ccf4a4cdc8acdd735cec19261471b44d&"
-                    },
-                    "fields": [
-                        {"name": "", "value": "", "inline": True},
-                        {"name": f"{self.active_match['teams'][0]} vs {self.active_match['teams'][1]}", "value": "", "inline": True},
-                        {"name": "", "value": "", "inline": True},
-                        {"name": "WINNER:", "value": winner.name, "inline": True},
-                        {"name": "", "value": "", "inline": True},
-                        {"name": "LOSER:", "value": loser.name, "inline": True},
-                        {"name": "", "value": "", "inline": True},
-                        {
-                            "name": "SERIES SCORE:",
-                            "value": f"{winner.series} vs {loser.series}",
-                            "inline": True,
-                        },
-                        {"name": "", "value": "", "inline": True},
-                        {"name": "SCORE:", "value": str(winner.score), "inline": True},
-                        {"name": "", "value": "", "inline": True},
-                        {"name": "SCORE:", "value": str(loser.score), "inline": True},
-                    ],
-                }
-            ]
+    def send_results(self, winner: bascenev1.SessionTeam, loser: bascenev1.SessionTeam, series1: int, series2: int, key: str) -> None:
+        details = {
+            "team1": self.active_match["teams"][0],
+            "team2": self.active_match["teams"][1],
+            "winner": winner.name,
+            "series1": series1,
+            "series2": series2,
+            "season_id": self.season_id,
         }
-        self.webhook.send("results", key, webhook_payload)
-        
+        data = {
+            "type": "results",
+            "details": details,
+            "season_id": self.season_id,
+        }
+        runner.run(data=data)
 
     def start_tournament_session(self) -> None:
         """starts the tournament session."""
-        # set os env to stop server from restarting in between a match.
+        # set os env to stop server from restarting in between a match and collect player stats.
         os.environ["BA_TOURNAMENT_MATCH"] = self.season_id
         from .activity import TournamentTransitionActivity
 

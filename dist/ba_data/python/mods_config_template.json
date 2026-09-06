@@ -13,6 +13,7 @@
         "port": 9001,
         "owner_id": 0,
         "webhooks": {
+            "brackets": "ENTER-YOUR-WEBHOOK-URL-HERE",
             "dashboard": "ENTER-YOUR-WEBHOOK-URL-HERE",
             "results": "ENTER-YOUR-WEBHOOK-URL-HERE"
         }

@@ -7,7 +7,7 @@ from server.storage import Storage
 from tournament.storage import SEASONS_DIR
 from tournament.registration import Registration
 from tournament.webhook import Webhook
-
+from tournament.graphics import runner
 
 class Brackets(Storage):
     """generates brackets and handles the rounds."""
@@ -15,7 +15,7 @@ class Brackets(Storage):
     def __init__(self, season_id: str):
         super().__init__("brackets.json", SEASONS_DIR / season_id)
         self.season_id = season_id
-        self.group_stage_path = self.directory / "group-stage.json"
+        self.group_stage_path = self.directory / "rounds" / "group-stage.json"
         self.bootstrap()
 
     def bootstrap(self):
@@ -75,6 +75,13 @@ class Brackets(Storage):
         brackets["active_round"] = "group-stage"
         brackets["total_rounds"] += 1
         self.commit(brackets)
+
+        # send the brackets to discord.
+        data = {
+            "type": "group-stage",
+            "season_id": self.season_id,
+        }
+        runner.run(data=data)
 
     def generate_round_robin(self, teams: list, count: int) -> dict:
         """generates rounds robin for teams."""
@@ -258,53 +265,12 @@ class Brackets(Storage):
 
     def send_group_stage_standings(self, group_key: str, standings: list, winning_teams_per_group: int) -> None:
         """sends the group stage standings to discord webhook."""
-
-        # building the payload for the webhook.
-        row_template = "{rank:<2} {team:<10} {pts:<3} {wl:<4} {rw:<3} {diff:>5}"
-        header = row_template.format(
-            rank="#", team="Team", pts="Pts", wl="W-L", rw="RW", diff="Diff"
-        )
-        separator = "-" * len(header)
-        standings_header = [header, separator]
-
-        for index, team in enumerate(standings, start=1):
-                standings_header.append(
-                    row_template.format(
-                        rank=index,
-                        team=team["id"][:10],
-                        pts=team["points"],
-                        wl=team["wins"] - team["loses"],
-                        rw=team["wins"],
-                        diff=team["diff"],
-                    )
-                )
-
-        body = "\n".join(standings_header)
-        payload = {
-            "embeds": [
-                {
-                    "title": f"Group {group_key} Standings - Season {self.season_id}",
-                    "image": {
-                        "url": "https://cdn.discordapp.com/attachments/1539651471383986287/1543948505079488532/file_00000000656c82118b8a6c325fdcc35e.png?ex=6a980b18&is=6a96b998&hm=478f1273c9a682fadd849c0ed1359d8790e526fc9f47b1b9912516e32edde383&"
-                    },
-                    "description": f"```text\n{body}\n```\nTop {winning_teams_per_group} teams will advance to the main stage.",
-                    "color": 10167990,
-                    "footer": {
-                        "text": "Pts: Points, W-L: Wins-Losses, RW: Rounds Won, Diff: Round Difference",
-                    },
-                }
-            ]
+        data = {
+            "type": "group-standings",
+            "season_id": self.season_id,
         }
-        # firstly check if there have been a message sent for this group.
-        data = self.webhook.get(group_key)
-        if data:
-            # there is a message already sent.
-            # we will edit it.
-            self.webhook.edit(group_key, payload)
-            return
 
-        # no message has been sent for this group yet.
-        self.webhook.send("dashboard", group_key, payload)
+        runner.run(data=data)
 
     def generate_first_round(
         self, teams: dict | list, winning_teams_per_group: int = 0
@@ -369,6 +335,13 @@ class Brackets(Storage):
         self.commit(brackets)
         file_path = self.get_active_round_path()
         self.commit(round_data, external_path=file_path)
+
+        # send the brackets to discord.
+        data = {
+            "type": "main-stage",
+            "season_id": self.season_id,
+        }
+        runner.run(data=data)
 
     def generate_ms_next_round(self):
         """generates the next rounds of main-stage"""
@@ -441,7 +414,7 @@ class Brackets(Storage):
     def get_active_round_path(self) -> Path:
         """returns the active round path."""
         brackets = self.read()
-        return (self.directory / brackets["active_round"]).with_suffix(".json")
+        return (self.directory / "rounds" / brackets["active_round"]).with_suffix(".json")
 
     def get_round_name(self, count: int) -> str:
         """returns the round-name by teams-count"""

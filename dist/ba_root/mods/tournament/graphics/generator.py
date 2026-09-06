@@ -38,9 +38,14 @@ BRONZE = (205, 127, 50)
 BYE = (255, 204, 82)
 
 GROUP_COLORS = [
-    PURPLE, BLUE, (210, 80, 255), (65, 145, 255),
-    (160, 75, 255), (55, 200, 235)
+    PURPLE,
+    BLUE,
+    (210, 80, 255),
+    (65, 145, 255),
+    (160, 75, 255),
+    (55, 200, 235),
 ]
+
 
 def read_json(file_path: Path) -> dict:
     if not file_path.exists():
@@ -86,7 +91,9 @@ def center_text(draw, cx, cy, text, font, fill):
 def center_text_box(draw, box, text, font, fill):
     x1, y1, x2, y2 = box
     tw, th = text_size(draw, text, font)
-    draw.text((x1 + (x2 - x1 - tw) / 2, y1 + (y2 - y1 - th) / 2), text, font=font, fill=fill)
+    draw.text(
+        (x1 + (x2 - x1 - tw) / 2, y1 + (y2 - y1 - th) / 2), text, font=font, fill=fill
+    )
 
 
 def draw_star_icon(d, cx, cy, size, fill):
@@ -98,22 +105,34 @@ def draw_star_icon(d, cx, cy, size, fill):
     d.polygon(points, fill=fill)
 
 
-def draw_rounded_rect(img, box, radius=16, fill=(10, 9, 22, 230), outline=(190, 72, 255, 180), width=2):
+def draw_rounded_rect(
+    img, box, radius=16, fill=(10, 9, 22, 230), outline=(190, 72, 255, 180), width=2
+):
     overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(overlay)
     d.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width)
     img.alpha_composite(overlay)
 
 
-def draw_alpha_rounded_rectangle(img, box, radius=12, fill=(10, 9, 22, 140), outline=None, width=1):
+def draw_alpha_rounded_rectangle(
+    img, box, radius=12, fill=(10, 9, 22, 140), outline=None, width=1
+):
     overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(overlay)
     d.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width)
     img.alpha_composite(overlay)
 
 
-def make_background(width, height, ellipse1, ellipse2, star_count=0, star_seed=19,
-                     star_radius_choices=(1, 1, 1, 2), star_alpha_range=(25, 95)):
+def make_background(
+    width,
+    height,
+    ellipse1,
+    ellipse2,
+    star_count=0,
+    star_seed=19,
+    star_radius_choices=(1, 1, 1, 2),
+    star_alpha_range=(25, 95),
+):
     img = Image.new("RGBA", (width, height), (*BG, 255))
     d = ImageDraw.Draw(img)
 
@@ -140,7 +159,9 @@ def make_background(width, height, ellipse1, ellipse2, star_count=0, star_seed=1
     return img
 
 
-def add_watermark(img, logo_file, canvas_w, canvas_h, alpha, thumb_size=(800, 800), y_pos=None):
+def add_watermark(
+    img, logo_file, canvas_w, canvas_h, alpha, thumb_size=(800, 800), y_pos=None
+):
     if not os.path.exists(logo_file):
         return
     logo = Image.open(logo_file).convert("RGBA")
@@ -154,7 +175,8 @@ def add_watermark(img, logo_file, canvas_w, canvas_h, alpha, thumb_size=(800, 80
 
 def generate_match_result(data: dict, webhook: Webhook) -> None:
     img = make_background(
-        WIDTH, HEIGHT,
+        WIDTH,
+        HEIGHT,
         ellipse1=((-200, -300, WIDTH + 200, HEIGHT + 400), (*PURPLE, 25), 4),
         ellipse2=((-100, -200, WIDTH + 100, HEIGHT + 300), (*BLUE, 20), 3),
     )
@@ -178,11 +200,20 @@ def generate_match_result(data: dict, webhook: Webhook) -> None:
     tw, th = text_size(d, header_text, banner_font)
 
     badge_w, badge_h = tw + 80, th + 28
-    badge_box = (center_x - badge_w // 2, top_y, center_x + badge_w // 2, top_y + badge_h)
+    badge_box = (
+        center_x - badge_w // 2,
+        top_y,
+        center_x + badge_w // 2,
+        top_y + badge_h,
+    )
     glow_box = (badge_box[0] - 6, badge_box[1] - 6, badge_box[2] + 6, badge_box[3] + 6)
 
-    draw_rounded_rect(img, glow_box, radius=14, fill=(255, 215, 0, 25), outline=(*GOLD, 100), width=1)
-    draw_rounded_rect(img, badge_box, radius=10, fill=(20, 16, 38, 245), outline=(*GOLD, 230), width=2)
+    draw_rounded_rect(
+        img, glow_box, radius=14, fill=(255, 215, 0, 25), outline=(*GOLD, 100), width=1
+    )
+    draw_rounded_rect(
+        img, badge_box, radius=10, fill=(20, 16, 38, 245), outline=(*GOLD, 230), width=2
+    )
     center_text(d, center_x, top_y + badge_h // 2, header_text, banner_font, GOLD)
     draw_star_icon(d, center_x - tw / 2 - 25, top_y + badge_h // 2, 8, GOLD)
     draw_star_icon(d, center_x + tw / 2 + 25, top_y + badge_h // 2, 8, GOLD)
@@ -191,7 +222,14 @@ def generate_match_result(data: dict, webhook: Webhook) -> None:
 
     card_w, card_h = 1400, 520
     card_box = (center_x - card_w // 2, top_y, center_x + card_w // 2, top_y + card_h)
-    draw_rounded_rect(img, card_box, radius=20, fill=(12, 10, 26, 235), outline=(*PURPLE, 200), width=3)
+    draw_rounded_rect(
+        img,
+        card_box,
+        radius=20,
+        fill=(12, 10, 26, 235),
+        outline=(*PURPLE, 200),
+        width=3,
+    )
 
     vs_font = get_font(42, bold=True)
     vs_sub_font = get_font(28, bold=True)
@@ -205,7 +243,11 @@ def generate_match_result(data: dict, webhook: Webhook) -> None:
     t2_color = GREEN if t2_is_winner else RED
     center_text(d, center_x + 320, top_y + 70, f"{data['team2']}", vs_font, t2_color)
 
-    d.line([(center_x - 620, top_y + 125), (center_x + 620, top_y + 125)], fill=(*CYAN, 100), width=2)
+    d.line(
+        [(center_x - 620, top_y + 125), (center_x + 620, top_y + 125)],
+        fill=(*CYAN, 100),
+        width=2,
+    )
 
     box_h = 240
     box_y = top_y + 160
@@ -217,8 +259,12 @@ def generate_match_result(data: dict, webhook: Webhook) -> None:
     b2_bg = (20, 45, 30, 210) if t2_is_winner else (45, 18, 24, 210)
     b2_outline = (*GREEN, 200) if t2_is_winner else (*RED, 180)
 
-    draw_rounded_rect(img, box1_coords, radius=14, fill=b1_bg, outline=b1_outline, width=2)
-    draw_rounded_rect(img, box2_coords, radius=14, fill=b2_bg, outline=b2_outline, width=2)
+    draw_rounded_rect(
+        img, box1_coords, radius=14, fill=b1_bg, outline=b1_outline, width=2
+    )
+    draw_rounded_rect(
+        img, box2_coords, radius=14, fill=b2_bg, outline=b2_outline, width=2
+    )
 
     label_font = get_font(20, bold=True)
     val_font = get_font(46, bold=True)
@@ -238,7 +284,9 @@ def generate_match_result(data: dict, webhook: Webhook) -> None:
     center_text(d, center_x, top_y + card_h - 55, winner_text, tag_font, GOLD)
 
     footer_font = get_font(22, bold=True)
-    center_text(d, center_x, HEIGHT - 55, f"SEASON {data['season_id']}", footer_font, MUTED)
+    center_text(
+        d, center_x, HEIGHT - 55, f"SEASON {data['season_id']}", footer_font, MUTED
+    )
 
     with io.BytesIO() as image_buffer:
         img.convert("RGB").save(image_buffer, "PNG", optimize=True)
@@ -247,7 +295,9 @@ def generate_match_result(data: dict, webhook: Webhook) -> None:
         webhook.send("results", "match_result", files)
 
 
-def generate_player_standings(season_id: str, stats_file: Path, webhook: Webhook) -> None:
+def generate_player_standings(
+    season_id: str, stats_file: Path, webhook: Webhook
+) -> None:
     raw_data = read_json(stats_file)
 
     players = list(raw_data.values())
@@ -255,7 +305,8 @@ def generate_player_standings(season_id: str, stats_file: Path, webhook: Webhook
     top_players = players[:10]
 
     img = make_background(
-        WIDTH, HEIGHT,
+        WIDTH,
+        HEIGHT,
         ellipse1=((-200, -300, WIDTH + 200, HEIGHT + 400), (*PURPLE, 25), 4),
         ellipse2=((-100, -200, WIDTH + 100, HEIGHT + 300), (*BLUE, 20), 3),
     )
@@ -278,11 +329,20 @@ def generate_player_standings(season_id: str, stats_file: Path, webhook: Webhook
     tw, th = text_size(d, header_text, banner_font)
 
     badge_w, badge_h = tw + 100, th + 22
-    badge_box = (center_x - badge_w // 2, top_y, center_x + badge_w // 2, top_y + badge_h)
+    badge_box = (
+        center_x - badge_w // 2,
+        top_y,
+        center_x + badge_w // 2,
+        top_y + badge_h,
+    )
     glow_box = (badge_box[0] - 5, badge_box[1] - 5, badge_box[2] + 5, badge_box[3] + 5)
 
-    draw_rounded_rect(img, glow_box, radius=12, fill=(255, 215, 0, 20), outline=(*GOLD, 80), width=1)
-    draw_rounded_rect(img, badge_box, radius=10, fill=(20, 16, 38, 245), outline=(*GOLD, 230), width=2)
+    draw_rounded_rect(
+        img, glow_box, radius=12, fill=(255, 215, 0, 20), outline=(*GOLD, 80), width=1
+    )
+    draw_rounded_rect(
+        img, badge_box, radius=10, fill=(20, 16, 38, 245), outline=(*GOLD, 230), width=2
+    )
     center_text(d, center_x, top_y + badge_h // 2, header_text, banner_font, GOLD)
     draw_star_icon(d, center_x - tw / 2 - 25, top_y + badge_h // 2, 8, GOLD)
     draw_star_icon(d, center_x + tw / 2 + 25, top_y + badge_h // 2, 8, GOLD)
@@ -291,7 +351,14 @@ def generate_player_standings(season_id: str, stats_file: Path, webhook: Webhook
 
     board_w = 1520
     board_box = (center_x - board_w // 2, top_y, center_x + board_w // 2, top_y + 730)
-    draw_rounded_rect(img, board_box, radius=18, fill=(12, 10, 26, 235), outline=(*PURPLE, 180), width=3)
+    draw_rounded_rect(
+        img,
+        board_box,
+        radius=18,
+        fill=(12, 10, 26, 235),
+        outline=(*PURPLE, 180),
+        width=3,
+    )
 
     col_rank = center_x - 680
     col_name = center_x - 480
@@ -311,7 +378,11 @@ def generate_player_standings(season_id: str, stats_file: Path, webhook: Webhook
     d.text((col_kd, header_y), "K/D", font=col_font, fill=CYAN)
     d.text((col_games, header_y), "GAMES", font=col_font, fill=CYAN)
 
-    d.line([(center_x - 720, top_y + 55), (center_x + 720, top_y + 55)], fill=(*CYAN, 90), width=2)
+    d.line(
+        [(center_x - 720, top_y + 55), (center_x + 720, top_y + 55)],
+        fill=(*CYAN, 90),
+        width=2,
+    )
 
     row_y = top_y + 68
     row_h = 63
@@ -327,16 +398,43 @@ def generate_player_standings(season_id: str, stats_file: Path, webhook: Webhook
         kd_val = round(kills / max(1, deaths), 2)
 
         if rank == 1:
-            rank_str, row_bg, row_outline, text_color = "#1", (40, 32, 12, 220), (*GOLD, 220), GOLD
+            rank_str, row_bg, row_outline, text_color = (
+                "#1",
+                (40, 32, 12, 220),
+                (*GOLD, 220),
+                GOLD,
+            )
         elif rank == 2:
-            rank_str, row_bg, row_outline, text_color = "#2", (30, 32, 40, 220), (*SILVER, 200), SILVER
+            rank_str, row_bg, row_outline, text_color = (
+                "#2",
+                (30, 32, 40, 220),
+                (*SILVER, 200),
+                SILVER,
+            )
         elif rank == 3:
-            rank_str, row_bg, row_outline, text_color = "#3", (35, 22, 15, 220), (*BRONZE, 200), BRONZE
+            rank_str, row_bg, row_outline, text_color = (
+                "#3",
+                (35, 22, 15, 220),
+                (*BRONZE, 200),
+                BRONZE,
+            )
         else:
-            rank_str, row_bg, row_outline, text_color = f"#{rank}", (16, 14, 34, 180), (*PURPLE, 60), WHITE
+            rank_str, row_bg, row_outline, text_color = (
+                f"#{rank}",
+                (16, 14, 34, 180),
+                (*PURPLE, 60),
+                WHITE,
+            )
 
         row_box = (center_x - 730, row_y, center_x + 730, row_y + row_h - 8)
-        draw_rounded_rect(img, row_box, radius=8, fill=row_bg, outline=row_outline, width=2 if rank <= 3 else 1)
+        draw_rounded_rect(
+            img,
+            row_box,
+            radius=8,
+            fill=row_bg,
+            outline=row_outline,
+            width=2 if rank <= 3 else 1,
+        )
 
         ty = row_y + 12
         d.text((col_rank, ty), rank_str, font=row_font, fill=text_color)
@@ -384,18 +482,30 @@ def _draw_group_header(img, subtitle):
     badge_w, badge_h = tw + 48, th + 24
 
     draw_alpha_rounded_rectangle(
-        img, (left_x, badge_y, left_x + badge_w, badge_y + badge_h),
-        radius=10, fill=(14, 12, 30, 230), outline=(*CYAN, 240), width=2
+        img,
+        (left_x, badge_y, left_x + badge_w, badge_y + badge_h),
+        radius=10,
+        fill=(14, 12, 30, 230),
+        outline=(*CYAN, 240),
+        width=2,
     )
-    center_text_box(d, (left_x, badge_y, left_x + badge_w, badge_y + badge_h), subtitle, badge_font, CYAN)
+    center_text_box(
+        d,
+        (left_x, badge_y, left_x + badge_w, badge_y + badge_h),
+        subtitle,
+        badge_font,
+        CYAN,
+    )
 
 
 def _group_background():
     return make_background(
-        WIDTH, HEIGHT,
+        WIDTH,
+        HEIGHT,
         ellipse1=((-250, -420, WIDTH + 250, HEIGHT + 600), (*PURPLE, 35), 4),
         ellipse2=((-160, -330, WIDTH + 160, HEIGHT + 510), (*BLUE, 28), 3),
-        star_count=220, star_seed=19,
+        star_count=220,
+        star_seed=19,
     )
 
 
@@ -407,7 +517,9 @@ def schedule_title(name):
     return name.replace("_", " ").upper()
 
 
-def _generate_single_group_standings(group_name: str, group_data: dict, winning_limit: int, webhook: Webhook) -> None:
+def _generate_single_group_standings(
+    group_name: str, group_data: dict, winning_limit: int, webhook: Webhook
+) -> None:
     img = _group_background()
     add_watermark(img, LOGO_FILE, WIDTH, HEIGHT, alpha=0.4, y_pos=125)
     _draw_group_header(img, standings_title(group_name))
@@ -419,15 +531,23 @@ def _generate_single_group_standings(group_name: str, group_data: dict, winning_
     card_w = WIDTH - (card_x * 2)
     card_h = HEIGHT - card_y - 75
     draw_alpha_rounded_rectangle(
-        img, (card_x, card_y, card_x + card_w, card_y + card_h),
-        radius=16, fill=(9, 8, 20, 160), outline=(*PURPLE, 180), width=2
+        img,
+        (card_x, card_y, card_x + card_w, card_y + card_h),
+        radius=16,
+        fill=(9, 8, 20, 160),
+        outline=(*PURPLE, 180),
+        width=2,
     )
 
     header_y = card_y + 18
     header_h = 52
     draw_alpha_rounded_rectangle(
-        img, (card_x + 15, header_y, card_x + card_w - 15, header_y + header_h),
-        radius=10, fill=(18, 15, 38, 220), outline=(*CYAN, 120), width=1
+        img,
+        (card_x + 15, header_y, card_x + card_w - 15, header_y + header_h),
+        radius=10,
+        fill=(18, 15, 38, 220),
+        outline=(*CYAN, 120),
+        width=1,
     )
 
     col_rank = card_x + 35
@@ -445,7 +565,9 @@ def _generate_single_group_standings(group_name: str, group_data: dict, winning_
     d.text((col_loses, header_y + 18), "LOSSES", font=header_font, fill=CYAN)
     d.text((col_pts, header_y + 18), "POINTS", font=header_font, fill=CYAN)
     d.text((col_diff, header_y + 18), "ROUND DIFF", font=header_font, fill=CYAN)
-    d.text((col_rounds, header_y + 18), "ROUNDS (WON/LOST)", font=header_font, fill=CYAN)
+    d.text(
+        (col_rounds, header_y + 18), "ROUNDS (WON/LOST)", font=header_font, fill=CYAN
+    )
 
     rows_start_y = header_y + header_h + 16
     team_count = len(standings)
@@ -467,9 +589,12 @@ def _generate_single_group_standings(group_name: str, group_data: dict, winning_
 
         row_outline = (*GREEN, 140) if is_advancing else (50, 50, 80, 100)
         draw_alpha_rounded_rectangle(
-            img, (card_x + 15, ry, card_x + card_w - 15, ry + row_h - 10),
-            radius=8, fill=(14, 12, 30, 180), outline=row_outline,
-            width=2 if is_advancing else 1
+            img,
+            (card_x + 15, ry, card_x + card_w - 15, ry + row_h - 10),
+            radius=8,
+            fill=(14, 12, 30, 180),
+            outline=row_outline,
+            width=2 if is_advancing else 1,
         )
 
         text_y = ry + (row_h // 2) - (base_team_font_size // 2) - 4
@@ -495,7 +620,12 @@ def _generate_single_group_standings(group_name: str, group_data: dict, winning_
 
     footer_text = f"TOP {winning_limit} TEAMS ADVANCE TO PLAYOFFS"
     fw, fh = text_size(d, footer_text, get_font(13, True))
-    d.text(((WIDTH - fw) / 2, HEIGHT - 42), footer_text, font=get_font(13, True), fill=(*GREEN, 255))
+    d.text(
+        ((WIDTH - fw) / 2, HEIGHT - 42),
+        footer_text,
+        font=get_font(13, True),
+        fill=(*GREEN, 255),
+    )
 
     with io.BytesIO() as image_buffer:
         img.convert("RGB").save(image_buffer, "PNG", optimize=True)
@@ -512,7 +642,6 @@ def _generate_single_group_standings(group_name: str, group_data: dict, winning_
 
         # there is no standings sent yet, we will send a new one.
         webhook.send("dashboard", f"standings_{group_name.lower()}", files)
-
 
 
 def generate_group_standings(json_file: Path, webhook: Webhook) -> None:
@@ -549,11 +678,21 @@ def draw_schedule_match_card(img, x, y, w, h, match_number, match):
     outline = BYE if bye else (65, 65, 105)
 
     draw_alpha_rounded_rectangle(
-        img, (x, y, x + w, y + h), radius=10, fill=(9, 9, 20, 140), outline=(*outline, 210), width=1
+        img,
+        (x, y, x + w, y + h),
+        radius=10,
+        fill=(9, 9, 20, 140),
+        outline=(*outline, 210),
+        width=1,
     )
 
     draw = ImageDraw.Draw(img)
-    draw.text((x + 12, y + 6), f"MATCH {match_number}", font=get_font(11, True), fill=(*MUTED_BOARD, 255))
+    draw.text(
+        (x + 12, y + 6),
+        f"MATCH {match_number}",
+        font=get_font(11, True),
+        fill=(*MUTED_BOARD, 255),
+    )
 
     t1 = team_label(match.get("team1"))
     t2 = team_label(match.get("team2"))
@@ -561,13 +700,18 @@ def draw_schedule_match_card(img, x, y, w, h, match_number, match):
     if bye:
         actual = t1 if t1 != "BYE" else t2
         center_text_box(
-            draw, (x + 15, y + 26, x + w - 15, y + h - 35),
-            actual, fit_font(draw, actual, w - 30, 24, True), WHITE
+            draw,
+            (x + 15, y + 26, x + w - 15, y + h - 35),
+            actual,
+            fit_font(draw, actual, w - 30, 24, True),
+            WHITE,
         )
         center_text_box(
-            draw, (x + 10, y + h - 32, x + w - 10, y + h - 8),
+            draw,
+            (x + 10, y + h - 32, x + w - 10, y + h - 8),
             "BYE  •  AUTOMATIC WIN",
-            fit_font(draw, "BYE  •  AUTOMATIC WIN", w - 20, 11, True), BYE
+            fit_font(draw, "BYE  •  AUTOMATIC WIN", w - 20, 11, True),
+            BYE,
         )
         return
 
@@ -583,8 +727,15 @@ def draw_schedule_match_card(img, x, y, w, h, match_number, match):
     draw.line((x + 25, mid_y, x + w - 25, mid_y), fill=(50, 50, 80, 120), width=1)
 
     vs_w, vs_h = 32, 16
-    vs_box = (x + (w // 2) - (vs_w // 2), mid_y - (vs_h // 2), x + (w // 2) + (vs_w // 2), mid_y + (vs_h // 2))
-    draw_alpha_rounded_rectangle(img, vs_box, radius=5, fill=(14, 12, 30, 230), outline=(*CYAN, 200), width=1)
+    vs_box = (
+        x + (w // 2) - (vs_w // 2),
+        mid_y - (vs_h // 2),
+        x + (w // 2) + (vs_w // 2),
+        mid_y + (vs_h // 2),
+    )
+    draw_alpha_rounded_rectangle(
+        img, vs_box, radius=5, fill=(14, 12, 30, 230), outline=(*CYAN, 200), width=1
+    )
     center_text_box(draw, vs_box, "VS", get_font(9, True), CYAN)
 
     team2_box = (x + 15, y + (h // 2) + 8, x + w - 15, y + h - 8)
@@ -594,16 +745,35 @@ def draw_schedule_match_card(img, x, y, w, h, match_number, match):
 
 def draw_round_column(img, x, y, w, h, round_number, round_data, accent):
     draw_alpha_rounded_rectangle(
-        img, (x, y, x + w, y + h), radius=14, fill=(9, 8, 20, 130), outline=(*accent, 190), width=2
+        img,
+        (x, y, x + w, y + h),
+        radius=14,
+        fill=(9, 8, 20, 130),
+        outline=(*accent, 190),
+        width=2,
     )
-    draw_alpha_rounded_rectangle(img, (x + 1, y + 1, x + w - 1, y + 62), radius=13, fill=(*accent, 35))
+    draw_alpha_rounded_rectangle(
+        img, (x + 1, y + 1, x + w - 1, y + 62), radius=13, fill=(*accent, 35)
+    )
 
     d = ImageDraw.Draw(img)
     status = str(round_data.get("status", "PENDING")).upper()
 
-    center_text_box(d, (x + 15, y + 8, x + w - 15, y + 37), f"ROUND {round_number}", get_font(21, True), WHITE)
+    center_text_box(
+        d,
+        (x + 15, y + 8, x + w - 15, y + 37),
+        f"ROUND {round_number}",
+        get_font(21, True),
+        WHITE,
+    )
     status_color = BLUE if status == "IN_PROGRESS" else PURPLE
-    center_text_box(d, (x + 15, y + 36, x + w - 15, y + 57), status.replace("_", " "), get_font(11, True), status_color)
+    center_text_box(
+        d,
+        (x + 15, y + 36, x + w - 15, y + 57),
+        status.replace("_", " "),
+        get_font(11, True),
+        status_color,
+    )
 
     matches = list(round_data.get("matches", {}).values())
     match_count = max(len(matches), 1)
@@ -615,7 +785,9 @@ def draw_round_column(img, x, y, w, h, round_number, round_data, accent):
 
     for i, match in enumerate(matches):
         my = content_y + i * (card_h + gap)
-        draw_schedule_match_card(img, x + 12, int(my), w - 24, int(card_h), i + 1, match)
+        draw_schedule_match_card(
+            img, x + 12, int(my), w - 24, int(card_h), i + 1, match
+        )
 
 
 def _generate_group_schedule(group_name: str, group_data: dict, webhook: Webhook):
@@ -636,11 +808,25 @@ def _generate_group_schedule(group_name: str, group_data: dict, webhook: Webhook
 
         for i, (round_name, round_data) in enumerate(rounds):
             x = left + i * (col_w + gap)
-            draw_round_column(img, int(x), top, int(col_w), int(col_h), i + 1, round_data, GROUP_COLORS[i % len(GROUP_COLORS)])
+            draw_round_column(
+                img,
+                int(x),
+                top,
+                int(col_w),
+                int(col_h),
+                i + 1,
+                round_data,
+                GROUP_COLORS[i % len(GROUP_COLORS)],
+            )
 
     footer = "NO OPPONENT  =  BYE  /  AUTOMATIC WIN"
     fw, fh = text_size(d, footer, get_font(13, True))
-    d.text(((WIDTH - fw) / 2, HEIGHT - 34), footer, font=get_font(13, True), fill=(*BYE, 255))
+    d.text(
+        ((WIDTH - fw) / 2, HEIGHT - 34),
+        footer,
+        font=get_font(13, True),
+        fill=(*BYE, 255),
+    )
 
     with io.BytesIO() as image_buffer:
         img.convert("RGB").save(image_buffer, "PNG", optimize=True)
@@ -688,10 +874,21 @@ def _generate_group_overview(groups: dict, webhook: Webhook) -> None:
         y = top + r * (card_h + gy)
         accent = GROUP_COLORS[i % len(GROUP_COLORS)]
 
-        draw_alpha_rounded_rectangle(img, (x, y, x + card_w, y + card_h), radius=16, fill=(9, 8, 20, 130), outline=(*accent, 200), width=2)
-        draw_alpha_rounded_rectangle(img, (x + 1, y + 1, x + card_w - 1, y + 62), radius=15, fill=(*accent, 45))
+        draw_alpha_rounded_rectangle(
+            img,
+            (x, y, x + card_w, y + card_h),
+            radius=16,
+            fill=(9, 8, 20, 130),
+            outline=(*accent, 200),
+            width=2,
+        )
+        draw_alpha_rounded_rectangle(
+            img, (x + 1, y + 1, x + card_w - 1, y + 62), radius=15, fill=(*accent, 45)
+        )
 
-        d.text((x + 18, y + 15), schedule_title(name), font=get_font(24, True), fill=WHITE)
+        d.text(
+            (x + 18, y + 15), schedule_title(name), font=get_font(24, True), fill=WHITE
+        )
 
         teams = collect_teams(group)
         content_top = y + 80
@@ -702,28 +899,46 @@ def _generate_group_overview(groups: dict, webhook: Webhook) -> None:
 
         count_label = f"{len(teams)} TEAMS"
         cw, ch = text_size(d, count_label, get_font(11, True))
-        d.text((x + card_w - cw - 18, y + 20), count_label, font=get_font(11, True), fill=(*MUTED_BOARD, 255))
+        d.text(
+            (x + card_w - cw - 18, y + 20),
+            count_label,
+            font=get_font(11, True),
+            fill=(*MUTED_BOARD, 255),
+        )
 
         for j, team in enumerate(teams):
             yy = content_top + j * row_h
             number_box_w = 38
 
             draw_alpha_rounded_rectangle(
-                img, (x + 16, yy, x + 16 + number_box_w, yy + row_h - 5),
-                radius=7, fill=(18, 17, 34, 180), outline=(*accent, 100), width=1
+                img,
+                (x + 16, yy, x + 16 + number_box_w, yy + row_h - 5),
+                radius=7,
+                fill=(18, 17, 34, 180),
+                outline=(*accent, 100),
+                width=1,
             )
             center_text_box(
-                d, (x + 16, yy, x + 16 + number_box_w, yy + row_h - 5),
-                str(j + 1), get_font(max(10, team_font_size - 2), True), (*accent, 255)
+                d,
+                (x + 16, yy, x + 16 + number_box_w, yy + row_h - 5),
+                str(j + 1),
+                get_font(max(10, team_font_size - 2), True),
+                (*accent, 255),
             )
 
             max_team_width = int(card_w - 82)
             tf = fit_font(d, str(team), max_team_width, team_font_size, True, minimum=8)
-            d.text((x + 68, yy + max(2, int(row_h * 0.18))), str(team), font=tf, fill=WHITE)
+            d.text(
+                (x + 68, yy + max(2, int(row_h * 0.18))), str(team), font=tf, fill=WHITE
+            )
 
             if j < len(teams) - 1:
                 divider_y = yy + row_h - 6
-                d.line((x + 68, divider_y, x + card_w - 18, divider_y), fill=(55, 55, 82, 100), width=1)
+                d.line(
+                    (x + 68, divider_y, x + card_w - 18, divider_y),
+                    fill=(55, 55, 82, 100),
+                    width=1,
+                )
 
     with io.BytesIO() as image_buffer:
         img.convert("RGB").save(image_buffer, "PNG", optimize=True)
@@ -745,14 +960,24 @@ def generate_group_stage(json_file: Path, webhook: Webhook) -> None:
         _generate_group_schedule(group_name, group_data, webhook)
 
 
-
 def _bracket_background():
     return make_background(
-        BRACKET_WIDTH, BRACKET_HEIGHT,
-        ellipse1=((-400, -700, BRACKET_WIDTH + 400, BRACKET_HEIGHT + 900), (*PURPLE, 30), 6),
-        ellipse2=((-300, -600, BRACKET_WIDTH + 300, BRACKET_HEIGHT + 800), (*BLUE, 25), 4),
-        star_count=450, star_seed=42,
-        star_radius_choices=(2, 2, 3), star_alpha_range=(20, 80),
+        BRACKET_WIDTH,
+        BRACKET_HEIGHT,
+        ellipse1=(
+            (-400, -700, BRACKET_WIDTH + 400, BRACKET_HEIGHT + 900),
+            (*PURPLE, 30),
+            6,
+        ),
+        ellipse2=(
+            (-300, -600, BRACKET_WIDTH + 300, BRACKET_HEIGHT + 800),
+            (*BLUE, 25),
+            4,
+        ),
+        star_count=450,
+        star_seed=42,
+        star_radius_choices=(2, 2, 3),
+        star_alpha_range=(20, 80),
     )
 
 
@@ -769,11 +994,18 @@ def draw_bracket_match_card(img, d, box, team1, team2, winner, font, card_w, car
     x1, y1, x2, y2 = box
     mid_y = y1 + (card_h / 2)
 
-    draw_alpha_rounded_rectangle(img, box, radius=10, fill=(10, 9, 22, 235), outline=(*PURPLE, 160), width=2)
+    draw_alpha_rounded_rectangle(
+        img, box, radius=10, fill=(10, 9, 22, 235), outline=(*PURPLE, 160), width=2
+    )
 
     t1_box = (x1 + 4, y1 + 4, x2 - 4, mid_y - 2)
     is_t1_winner = bool(winner) and winner == team1
-    draw_alpha_rounded_rectangle(img, t1_box, radius=5, fill=(20, 45, 30, 210) if is_t1_winner else (16, 14, 34, 190))
+    draw_alpha_rounded_rectangle(
+        img,
+        t1_box,
+        radius=5,
+        fill=(20, 45, 30, 210) if is_t1_winner else (16, 14, 34, 190),
+    )
     t1_text = truncate_text(d, team1, card_w - 20, font)
     t1_color = GREEN if is_t1_winner else (WHITE if team1 != "TBD" else MUTED)
     center_text_box(d, t1_box, t1_text, font, t1_color)
@@ -785,7 +1017,12 @@ def draw_bracket_match_card(img, d, box, team1, team2, winner, font, card_w, car
 
     t2_box = (x1 + 4, mid_y + 2, x2 - 4, y2 - 4)
     is_t2_winner = bool(winner) and winner == team2
-    draw_alpha_rounded_rectangle(img, t2_box, radius=5, fill=(20, 45, 30, 210) if is_t2_winner else (16, 14, 34, 190))
+    draw_alpha_rounded_rectangle(
+        img,
+        t2_box,
+        radius=5,
+        fill=(20, 45, 30, 210) if is_t2_winner else (16, 14, 34, 190),
+    )
     t2_text = truncate_text(d, team2, card_w - 20, font)
     t2_color = GREEN if is_t2_winner else (WHITE if team2 != "TBD" else MUTED)
     center_text_box(d, t2_box, t2_text, font, t2_color)
@@ -803,7 +1040,14 @@ def load_round_data(json_files: list) -> dict:
 
 def generate_mainstage_bracket(json_files: list, webhook: Webhook, key: str) -> None:
     img = _bracket_background()
-    add_watermark(img, LOGO_FILE, BRACKET_WIDTH, BRACKET_HEIGHT, alpha=0.20, thumb_size=(1200, 1200))
+    add_watermark(
+        img,
+        LOGO_FILE,
+        BRACKET_WIDTH,
+        BRACKET_HEIGHT,
+        alpha=0.20,
+        thumb_size=(1200, 1200),
+    )
     draw_bracket_header(img)
 
     rounds_data = load_round_data(json_files)
@@ -814,7 +1058,9 @@ def generate_mainstage_bracket(json_files: list, webhook: Webhook, key: str) -> 
 
     first_file = Path(json_files[0])
     r1_filename = first_file.name
-    total_r1_matches = len(list(rounds_data.get(r1_filename, {}).get("matches", {}).values()))
+    total_r1_matches = len(
+        list(rounds_data.get(r1_filename, {}).get("matches", {}).values())
+    )
     wing_rounds = int(math.log2(total_r1_matches // 2)) + 1
 
     side_margin = 120
@@ -835,7 +1081,7 @@ def generate_mainstage_bracket(json_files: list, webhook: Webhook, key: str) -> 
     right_positions = {}
 
     for r_idx in range(wing_rounds):
-        matches_per_wing = (total_r1_matches // 2) // (2 ** r_idx)
+        matches_per_wing = (total_r1_matches // 2) // (2**r_idx)
         step_y = usable_h / matches_per_wing
         left_x = side_margin + (card_w / 2) + (r_idx * wing_gap)
         right_x = BRACKET_WIDTH - side_margin - (card_w / 2) - (r_idx * wing_gap)
@@ -850,44 +1096,100 @@ def generate_mainstage_bracket(json_files: list, webhook: Webhook, key: str) -> 
             left_positions[(r_idx, m_idx)] = {"cx": left_x, "cy": cy}
 
             p1_ry = right_positions[(r_idx - 1, m_idx * 2)]["cy"] if r_idx > 0 else cy
-            p2_ry = right_positions[(r_idx - 1, m_idx * 2 + 1)]["cy"] if r_idx > 0 else cy
+            p2_ry = (
+                right_positions[(r_idx - 1, m_idx * 2 + 1)]["cy"] if r_idx > 0 else cy
+            )
             right_cy = (p1_ry + p2_ry) / 2 if r_idx > 0 else cy
             right_positions[(r_idx, m_idx)] = {"cx": right_x, "cy": right_cy}
 
     for r_idx in range(wing_rounds - 1):
-        m_count = (total_r1_matches // 2) // (2 ** r_idx)
+        m_count = (total_r1_matches // 2) // (2**r_idx)
         for m in range(m_count):
             p_L = left_positions[(r_idx, m)]
             c_L = left_positions[(r_idx + 1, m // 2)]
-            mid_L = p_L["cx"] + (card_w / 2) + ((c_L["cx"] - (card_w / 2)) - (p_L["cx"] + (card_w / 2))) / 2
-            d.line([(p_L["cx"] + card_w / 2, p_L["cy"]), (mid_L, p_L["cy"])], fill=(*CYAN, 140), width=2)
+            mid_L = (
+                p_L["cx"]
+                + (card_w / 2)
+                + ((c_L["cx"] - (card_w / 2)) - (p_L["cx"] + (card_w / 2))) / 2
+            )
+            d.line(
+                [(p_L["cx"] + card_w / 2, p_L["cy"]), (mid_L, p_L["cy"])],
+                fill=(*CYAN, 140),
+                width=2,
+            )
             d.line([(mid_L, p_L["cy"]), (mid_L, c_L["cy"])], fill=(*CYAN, 140), width=2)
-            d.line([(mid_L, c_L["cy"]), (c_L["cx"] - card_w / 2, c_L["cy"])], fill=(*CYAN, 140), width=2)
+            d.line(
+                [(mid_L, c_L["cy"]), (c_L["cx"] - card_w / 2, c_L["cy"])],
+                fill=(*CYAN, 140),
+                width=2,
+            )
 
             p_R = right_positions[(r_idx, m)]
             c_R = right_positions[(r_idx + 1, m // 2)]
-            mid_R = p_R["cx"] - (card_w / 2) - ((p_R["cx"] - (card_w / 2)) - (c_R["cx"] + (card_w / 2))) / 2
-            d.line([(p_R["cx"] - card_w / 2, p_R["cy"]), (mid_R, p_R["cy"])], fill=(*CYAN, 140), width=2)
+            mid_R = (
+                p_R["cx"]
+                - (card_w / 2)
+                - ((p_R["cx"] - (card_w / 2)) - (c_R["cx"] + (card_w / 2))) / 2
+            )
+            d.line(
+                [(p_R["cx"] - card_w / 2, p_R["cy"]), (mid_R, p_R["cy"])],
+                fill=(*CYAN, 140),
+                width=2,
+            )
             d.line([(mid_R, p_R["cy"]), (mid_R, c_R["cy"])], fill=(*CYAN, 140), width=2)
-            d.line([(mid_R, c_R["cy"]), (c_R["cx"] + card_w / 2, c_R["cy"])], fill=(*CYAN, 140), width=2)
+            d.line(
+                [(mid_R, c_R["cy"]), (c_R["cx"] + card_w / 2, c_R["cy"])],
+                fill=(*CYAN, 140),
+                width=2,
+            )
 
     team_font = get_font(max(14, int(card_h * 0.22)), True)
 
     for r_idx in range(wing_rounds):
-        m_count = (total_r1_matches // 2) // (2 ** r_idx)
+        m_count = (total_r1_matches // 2) // (2**r_idx)
         fname = Path(json_files[r_idx]).name if r_idx < len(json_files) else ""
         m_data = list(rounds_data.get(fname, {}).get("matches", {}).values())
 
         for m in range(m_count):
             match_L = m_data[m] if m < len(m_data) else {}
             pos_L = left_positions[(r_idx, m)]
-            box_L = (pos_L["cx"] - card_w / 2, pos_L["cy"] - card_h / 2, pos_L["cx"] + card_w / 2, pos_L["cy"] + card_h / 2)
-            draw_bracket_match_card(img, d, box_L, match_L.get("team1", "TBD"), match_L.get("team2", "TBD"), match_L.get("winner"), team_font, card_w, card_h)
+            box_L = (
+                pos_L["cx"] - card_w / 2,
+                pos_L["cy"] - card_h / 2,
+                pos_L["cx"] + card_w / 2,
+                pos_L["cy"] + card_h / 2,
+            )
+            draw_bracket_match_card(
+                img,
+                d,
+                box_L,
+                match_L.get("team1", "TBD"),
+                match_L.get("team2", "TBD"),
+                match_L.get("winner"),
+                team_font,
+                card_w,
+                card_h,
+            )
 
             match_R = m_data[m + m_count] if (m + m_count) < len(m_data) else {}
             pos_R = right_positions[(r_idx, m)]
-            box_R = (pos_R["cx"] - card_w / 2, pos_R["cy"] - card_h / 2, pos_R["cx"] + card_w / 2, pos_R["cy"] + card_h / 2)
-            draw_bracket_match_card(img, d, box_R, match_R.get("team1", "TBD"), match_R.get("team2", "TBD"), match_R.get("winner"), team_font, card_w, card_h)
+            box_R = (
+                pos_R["cx"] - card_w / 2,
+                pos_R["cy"] - card_h / 2,
+                pos_R["cx"] + card_w / 2,
+                pos_R["cy"] + card_h / 2,
+            )
+            draw_bracket_match_card(
+                img,
+                d,
+                box_R,
+                match_R.get("team1", "TBD"),
+                match_R.get("team2", "TBD"),
+                match_R.get("winner"),
+                team_font,
+                card_w,
+                card_h,
+            )
 
     center_card_w, center_card_h = 360, 110
     finals_y = top_y + 450
@@ -900,74 +1202,332 @@ def generate_mainstage_bracket(json_files: list, webhook: Webhook, key: str) -> 
     semi_L = left_positions[(wing_rounds - 1, 0)]
     semi_R = right_positions[(wing_rounds - 1, 0)]
 
-    mid_gf_L = semi_L["cx"] + (card_w / 2) + ((center_x - center_card_w / 2) - (semi_L["cx"] + card_w / 2)) * 0.5
-    d.line([(semi_L["cx"] + card_w / 2, semi_L["cy"]), (mid_gf_L, semi_L["cy"])], fill=(*GOLD, 200), width=3)
+    mid_gf_L = (
+        semi_L["cx"]
+        + (card_w / 2)
+        + ((center_x - center_card_w / 2) - (semi_L["cx"] + card_w / 2)) * 0.5
+    )
+    d.line(
+        [(semi_L["cx"] + card_w / 2, semi_L["cy"]), (mid_gf_L, semi_L["cy"])],
+        fill=(*GOLD, 200),
+        width=3,
+    )
     d.line([(mid_gf_L, semi_L["cy"]), (mid_gf_L, finals_y)], fill=(*GOLD, 200), width=3)
-    d.line([(mid_gf_L, finals_y), (center_x - center_card_w / 2, finals_y)], fill=(*GOLD, 200), width=3)
+    d.line(
+        [(mid_gf_L, finals_y), (center_x - center_card_w / 2, finals_y)],
+        fill=(*GOLD, 200),
+        width=3,
+    )
 
-    mid_gf_R = semi_R["cx"] - (card_w / 2) - ((semi_R["cx"] - card_w / 2) - (center_x + center_card_w / 2)) * 0.5
-    d.line([(semi_R["cx"] - card_w / 2, semi_R["cy"]), (mid_gf_R, semi_R["cy"])], fill=(*GOLD, 200), width=3)
+    mid_gf_R = (
+        semi_R["cx"]
+        - (card_w / 2)
+        - ((semi_R["cx"] - card_w / 2) - (center_x + center_card_w / 2)) * 0.5
+    )
+    d.line(
+        [(semi_R["cx"] - card_w / 2, semi_R["cy"]), (mid_gf_R, semi_R["cy"])],
+        fill=(*GOLD, 200),
+        width=3,
+    )
     d.line([(mid_gf_R, semi_R["cy"]), (mid_gf_R, finals_y)], fill=(*GOLD, 200), width=3)
-    d.line([(mid_gf_R, finals_y), (center_x + center_card_w / 2, finals_y)], fill=(*GOLD, 200), width=3)
+    d.line(
+        [(mid_gf_R, finals_y), (center_x + center_card_w / 2, finals_y)],
+        fill=(*GOLD, 200),
+        width=3,
+    )
 
-    mid_3rd_L = semi_L["cx"] + (card_w / 2) + ((center_x - center_card_w / 2) - (semi_L["cx"] + card_w / 2)) * 0.35
-    d.line([(semi_L["cx"] + card_w / 2, semi_L["cy"]), (mid_3rd_L, semi_L["cy"])], fill=(*BRONZE, 180), width=2)
-    d.line([(mid_3rd_L, semi_L["cy"]), (mid_3rd_L, third_y)], fill=(*BRONZE, 180), width=2)
-    d.line([(mid_3rd_L, third_y), (center_x - center_card_w / 2, third_y)], fill=(*BRONZE, 180), width=2)
+    mid_3rd_L = (
+        semi_L["cx"]
+        + (card_w / 2)
+        + ((center_x - center_card_w / 2) - (semi_L["cx"] + card_w / 2)) * 0.35
+    )
+    d.line(
+        [(semi_L["cx"] + card_w / 2, semi_L["cy"]), (mid_3rd_L, semi_L["cy"])],
+        fill=(*BRONZE, 180),
+        width=2,
+    )
+    d.line(
+        [(mid_3rd_L, semi_L["cy"]), (mid_3rd_L, third_y)], fill=(*BRONZE, 180), width=2
+    )
+    d.line(
+        [(mid_3rd_L, third_y), (center_x - center_card_w / 2, third_y)],
+        fill=(*BRONZE, 180),
+        width=2,
+    )
 
-    mid_3rd_R = semi_R["cx"] - (card_w / 2) - ((semi_R["cx"] - card_w / 2) - (center_x + center_card_w / 2)) * 0.35
-    d.line([(semi_R["cx"] - card_w / 2, semi_R["cy"]), (mid_3rd_R, semi_R["cy"])], fill=(*BRONZE, 180), width=2)
-    d.line([(mid_3rd_R, semi_R["cy"]), (mid_3rd_R, third_y)], fill=(*BRONZE, 180), width=2)
-    d.line([(mid_3rd_R, third_y), (center_x + center_card_w / 2, third_y)], fill=(*BRONZE, 180), width=2)
+    mid_3rd_R = (
+        semi_R["cx"]
+        - (card_w / 2)
+        - ((semi_R["cx"] - card_w / 2) - (center_x + center_card_w / 2)) * 0.35
+    )
+    d.line(
+        [(semi_R["cx"] - card_w / 2, semi_R["cy"]), (mid_3rd_R, semi_R["cy"])],
+        fill=(*BRONZE, 180),
+        width=2,
+    )
+    d.line(
+        [(mid_3rd_R, semi_R["cy"]), (mid_3rd_R, third_y)], fill=(*BRONZE, 180), width=2
+    )
+    d.line(
+        [(mid_3rd_R, third_y), (center_x + center_card_w / 2, third_y)],
+        fill=(*BRONZE, 180),
+        width=2,
+    )
 
     h_font = get_font(20, True)
     center_font = get_font(20, True)
 
-    gf_box = (center_x - center_card_w / 2, finals_y - center_card_h / 2, center_x + center_card_w / 2, finals_y + center_card_h / 2)
+    gf_box = (
+        center_x - center_card_w / 2,
+        finals_y - center_card_h / 2,
+        center_x + center_card_w / 2,
+        finals_y + center_card_h / 2,
+    )
     tw, th = text_size(d, "GRAND FINALS", h_font)
-    draw_alpha_rounded_rectangle(img, (center_x - tw / 2 - 16, finals_y - center_card_h / 2 - 40, center_x + tw / 2 + 16, finals_y - center_card_h / 2 - 6), radius=6, fill=(18, 15, 38, 230), outline=(*GOLD, 220), width=2)
-    d.text((center_x - tw / 2, finals_y - center_card_h / 2 - 34), "GRAND FINALS", font=h_font, fill=GOLD)
-    draw_bracket_match_card(img, d, gf_box, grand_final.get("team1", "TBD"), grand_final.get("team2", "TBD"), grand_final.get("winner"), center_font, center_card_w, center_card_h)
+    draw_alpha_rounded_rectangle(
+        img,
+        (
+            center_x - tw / 2 - 16,
+            finals_y - center_card_h / 2 - 40,
+            center_x + tw / 2 + 16,
+            finals_y - center_card_h / 2 - 6,
+        ),
+        radius=6,
+        fill=(18, 15, 38, 230),
+        outline=(*GOLD, 220),
+        width=2,
+    )
+    d.text(
+        (center_x - tw / 2, finals_y - center_card_h / 2 - 34),
+        "GRAND FINALS",
+        font=h_font,
+        fill=GOLD,
+    )
+    draw_bracket_match_card(
+        img,
+        d,
+        gf_box,
+        grand_final.get("team1", "TBD"),
+        grand_final.get("team2", "TBD"),
+        grand_final.get("winner"),
+        center_font,
+        center_card_w,
+        center_card_h,
+    )
 
-    tp_box = (center_x - center_card_w / 2, third_y - center_card_h / 2, center_x + center_card_w / 2, third_y + center_card_h / 2)
+    tp_box = (
+        center_x - center_card_w / 2,
+        third_y - center_card_h / 2,
+        center_x + center_card_w / 2,
+        third_y + center_card_h / 2,
+    )
     tw, th = text_size(d, "3RD PLACE MATCH", h_font)
-    draw_alpha_rounded_rectangle(img, (center_x - tw / 2 - 16, third_y - center_card_h / 2 - 40, center_x + tw / 2 + 16, third_y - center_card_h / 2 - 6), radius=6, fill=(18, 15, 38, 230), outline=(*BRONZE, 200), width=2)
-    d.text((center_x - tw / 2, third_y - center_card_h / 2 - 34), "3RD PLACE MATCH", font=h_font, fill=BRONZE)
-    draw_bracket_match_card(img, d, tp_box, third_match.get("team1", "TBD"), third_match.get("team2", "TBD"), third_match.get("winner"), center_font, center_card_w, center_card_h)
+    draw_alpha_rounded_rectangle(
+        img,
+        (
+            center_x - tw / 2 - 16,
+            third_y - center_card_h / 2 - 40,
+            center_x + tw / 2 + 16,
+            third_y - center_card_h / 2 - 6,
+        ),
+        radius=6,
+        fill=(18, 15, 38, 230),
+        outline=(*BRONZE, 200),
+        width=2,
+    )
+    d.text(
+        (center_x - tw / 2, third_y - center_card_h / 2 - 34),
+        "3RD PLACE MATCH",
+        font=h_font,
+        fill=BRONZE,
+    )
+    draw_bracket_match_card(
+        img,
+        d,
+        tp_box,
+        third_match.get("team1", "TBD"),
+        third_match.get("team2", "TBD"),
+        third_match.get("winner"),
+        center_font,
+        center_card_w,
+        center_card_h,
+    )
 
     gf_winner = grand_final.get("winner")
     gf_t1 = grand_final.get("team1", "TBD")
     gf_t2 = grand_final.get("team2", "TBD")
-    gf_runnerup = gf_t2 if gf_winner == gf_t1 else (gf_t1 if gf_winner == gf_t2 else None)
+    gf_runnerup = (
+        gf_t2 if gf_winner == gf_t1 else (gf_t1 if gf_winner == gf_t2 else None)
+    )
 
     top_podium_box = (center_x - 240, top_y + 20, center_x + 240, top_y + 200)
-    d.line([(center_x, finals_y - center_card_h / 2), (center_x, top_podium_box[3])], fill=(*GOLD, 220), width=3)
+    d.line(
+        [(center_x, finals_y - center_card_h / 2), (center_x, top_podium_box[3])],
+        fill=(*GOLD, 220),
+        width=3,
+    )
 
     if gf_winner:
-        draw_alpha_rounded_rectangle(img, top_podium_box, radius=16, fill=(35, 28, 10, 245), outline=(*GOLD, 255), width=3)
-        center_text_box(d, (top_podium_box[0], top_podium_box[1] + 12, top_podium_box[2], top_podium_box[1] + 40), "CHAMPIONS", get_font(18, True), GOLD)
+        draw_alpha_rounded_rectangle(
+            img,
+            top_podium_box,
+            radius=16,
+            fill=(35, 28, 10, 245),
+            outline=(*GOLD, 255),
+            width=3,
+        )
+        center_text_box(
+            d,
+            (
+                top_podium_box[0],
+                top_podium_box[1] + 12,
+                top_podium_box[2],
+                top_podium_box[1] + 40,
+            ),
+            "CHAMPIONS",
+            get_font(18, True),
+            GOLD,
+        )
         r1_text = truncate_text(d, f"RANK 1: {gf_winner}", 440, get_font(24, True))
-        center_text_box(d, (top_podium_box[0], top_podium_box[1] + 52, top_podium_box[2], top_podium_box[1] + 90), r1_text, get_font(24, True), GOLD)
+        center_text_box(
+            d,
+            (
+                top_podium_box[0],
+                top_podium_box[1] + 52,
+                top_podium_box[2],
+                top_podium_box[1] + 90,
+            ),
+            r1_text,
+            get_font(24, True),
+            GOLD,
+        )
         r2_text = truncate_text(d, f"RANK 2: {gf_runnerup}", 440, get_font(20, True))
-        center_text_box(d, (top_podium_box[0], top_podium_box[1] + 102, top_podium_box[2], top_podium_box[1] + 140), r2_text, get_font(20, True), SILVER)
+        center_text_box(
+            d,
+            (
+                top_podium_box[0],
+                top_podium_box[1] + 102,
+                top_podium_box[2],
+                top_podium_box[1] + 140,
+            ),
+            r2_text,
+            get_font(20, True),
+            SILVER,
+        )
     else:
-        draw_alpha_rounded_rectangle(img, top_podium_box, radius=16, fill=(10, 9, 22, 190), outline=(*MUTED, 120), width=2)
-        center_text_box(d, (top_podium_box[0], top_podium_box[1] + 25, top_podium_box[2], top_podium_box[1] + 55), "CHAMPIONS", get_font(18, True), MUTED)
-        center_text_box(d, (top_podium_box[0], top_podium_box[1] + 75, top_podium_box[2], top_podium_box[1] + 115), "RANK 1 & 2: TBD", get_font(22, True), MUTED)
+        draw_alpha_rounded_rectangle(
+            img,
+            top_podium_box,
+            radius=16,
+            fill=(10, 9, 22, 190),
+            outline=(*MUTED, 120),
+            width=2,
+        )
+        center_text_box(
+            d,
+            (
+                top_podium_box[0],
+                top_podium_box[1] + 25,
+                top_podium_box[2],
+                top_podium_box[1] + 55,
+            ),
+            "CHAMPIONS",
+            get_font(18, True),
+            MUTED,
+        )
+        center_text_box(
+            d,
+            (
+                top_podium_box[0],
+                top_podium_box[1] + 75,
+                top_podium_box[2],
+                top_podium_box[1] + 115,
+            ),
+            "RANK 1 & 2: TBD",
+            get_font(22, True),
+            MUTED,
+        )
 
     tp_winner = third_match.get("winner")
-    bot_podium_box = (center_x - 210, third_y + center_card_h / 2 + 50, center_x + 210, third_y + center_card_h / 2 + 160)
-    d.line([(center_x, third_y + center_card_h / 2), (center_x, bot_podium_box[1])], fill=(*BRONZE, 200), width=3)
+    bot_podium_box = (
+        center_x - 210,
+        third_y + center_card_h / 2 + 50,
+        center_x + 210,
+        third_y + center_card_h / 2 + 160,
+    )
+    d.line(
+        [(center_x, third_y + center_card_h / 2), (center_x, bot_podium_box[1])],
+        fill=(*BRONZE, 200),
+        width=3,
+    )
 
     if tp_winner:
-        draw_alpha_rounded_rectangle(img, bot_podium_box, radius=14, fill=(30, 20, 12, 245), outline=(*BRONZE, 255), width=3)
-        center_text_box(d, (bot_podium_box[0], bot_podium_box[1] + 10, bot_podium_box[2], bot_podium_box[1] + 36), "THIRD PLACE", get_font(17, True), BRONZE)
+        draw_alpha_rounded_rectangle(
+            img,
+            bot_podium_box,
+            radius=14,
+            fill=(30, 20, 12, 245),
+            outline=(*BRONZE, 255),
+            width=3,
+        )
+        center_text_box(
+            d,
+            (
+                bot_podium_box[0],
+                bot_podium_box[1] + 10,
+                bot_podium_box[2],
+                bot_podium_box[1] + 36,
+            ),
+            "THIRD PLACE",
+            get_font(17, True),
+            BRONZE,
+        )
         r3_text = truncate_text(d, f"RANK 3: {tp_winner}", 360, get_font(22, True))
-        center_text_box(d, (bot_podium_box[0], bot_podium_box[1] + 44, bot_podium_box[2], bot_podium_box[3] - 10), r3_text, get_font(22, True), WHITE)
+        center_text_box(
+            d,
+            (
+                bot_podium_box[0],
+                bot_podium_box[1] + 44,
+                bot_podium_box[2],
+                bot_podium_box[3] - 10,
+            ),
+            r3_text,
+            get_font(22, True),
+            WHITE,
+        )
     else:
-        draw_alpha_rounded_rectangle(img, bot_podium_box, radius=14, fill=(10, 9, 22, 190), outline=(*MUTED, 120), width=2)
-        center_text_box(d, (bot_podium_box[0], bot_podium_box[1] + 14, bot_podium_box[2], bot_podium_box[1] + 40), "THIRD PLACE", get_font(17, True), MUTED)
-        center_text_box(d, (bot_podium_box[0], bot_podium_box[1] + 48, bot_podium_box[2], bot_podium_box[3] - 10), "RANK 3: TBD", get_font(20, True), MUTED)
+        draw_alpha_rounded_rectangle(
+            img,
+            bot_podium_box,
+            radius=14,
+            fill=(10, 9, 22, 190),
+            outline=(*MUTED, 120),
+            width=2,
+        )
+        center_text_box(
+            d,
+            (
+                bot_podium_box[0],
+                bot_podium_box[1] + 14,
+                bot_podium_box[2],
+                bot_podium_box[1] + 40,
+            ),
+            "THIRD PLACE",
+            get_font(17, True),
+            MUTED,
+        )
+        center_text_box(
+            d,
+            (
+                bot_podium_box[0],
+                bot_podium_box[1] + 48,
+                bot_podium_box[2],
+                bot_podium_box[3] - 10,
+            ),
+            "RANK 3: TBD",
+            get_font(20, True),
+            MUTED,
+        )
 
     with io.BytesIO() as image_buffer:
         img.convert("RGB").save(image_buffer, "PNG", optimize=True)
@@ -977,7 +1537,6 @@ def generate_mainstage_bracket(json_files: list, webhook: Webhook, key: str) -> 
 
 
 if __name__ == "__main__":
-
     data = json.loads(sys.argv[1])
     season_id = data["season_id"]
     webhook = Webhook(season_id)
@@ -1003,7 +1562,12 @@ if __name__ == "__main__":
 
     elif data["type"] == "main-stage":
         # for main stage
-        files = [file for file in SEASON_DIR.glob("rounds/*.json") if file.name != "group-stage.json"]
+        files = [
+            file
+            for file in SEASON_DIR.glob("rounds/*.json")
+            if file.name != "group-stage.json"
+        ]
         sorted_files = sorted(files, key=lambda x: x.stat().st_ctime)
-        generate_mainstage_bracket(json_files=sorted_files, webhook=webhook, key=data["key"])
-            
+        generate_mainstage_bracket(
+            json_files=sorted_files, webhook=webhook, key=data["key"]
+        )

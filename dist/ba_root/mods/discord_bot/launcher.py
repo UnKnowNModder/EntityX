@@ -112,11 +112,7 @@ def launch(self) -> None:
 
     # run the bot script using uv
     script_path = str(Path(__file__).resolve().parent / "bot.py")
-    cmd = [
-        uv_path,
-        "run",
-        script_path
-    ]
+    cmd = [uv_path, "run", script_path]
 
     # we need to pass env for the file to be able to import from sister folders.
     MODS_DIR = str(Path(__file__).resolve().parent.parent)

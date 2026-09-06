@@ -9,6 +9,7 @@ from tournament.registration import Registration
 from tournament.webhook import Webhook
 from tournament.graphics import runner
 
+
 class Brackets(Storage):
     """generates brackets and handles the rounds."""
 
@@ -99,9 +100,7 @@ class Brackets(Storage):
                 first = teams[i]  # first in sense of next front.
                 last = teams[count - 1 - i]  # last in sense of previous back.
 
-                match = self.create_match_format(
-                    team1=first, team2=last
-                )
+                match = self.create_match_format(team1=first, team2=last)
 
                 # if one of them is None, we give them BYEs.
                 if first is None or last is None:
@@ -152,7 +151,11 @@ class Brackets(Storage):
 
         # recalculate the standings
         self.recalculate_group_standings(group=group)
-        self.send_group_stage_standings(group_key=group_key, standings=group["standings_sorted"], winning_teams_per_group=gs["winning_teams_per_group"])
+        self.send_group_stage_standings(
+            group_key=group_key,
+            standings=group["standings_sorted"],
+            winning_teams_per_group=gs["winning_teams_per_group"],
+        )
 
         # check if the whole groupstage is completed.
         if all(
@@ -263,7 +266,9 @@ class Brackets(Storage):
         # this will come in help for showing the stats on leaderboard.
         group["standings_sorted"] = sorted_teams
 
-    def send_group_stage_standings(self, group_key: str, standings: list, winning_teams_per_group: int) -> None:
+    def send_group_stage_standings(
+        self, group_key: str, standings: list, winning_teams_per_group: int
+    ) -> None:
         """sends the group stage standings to discord webhook."""
         data = {
             "type": "group-standings",
@@ -390,10 +395,11 @@ class Brackets(Storage):
     def announce_tournament_completion(self) -> None:
         """announces the tournament completion."""
         from tournament import tournament
+
         db = tournament.read()
         db.active_season = "0"
         tournament.commit(db)
-        
+
         payload = {
             "embeds": [
                 {
@@ -414,7 +420,9 @@ class Brackets(Storage):
     def get_active_round_path(self) -> Path:
         """returns the active round path."""
         brackets = self.read()
-        return (self.directory / "rounds" / brackets["active_round"]).with_suffix(".json")
+        return (self.directory / "rounds" / brackets["active_round"]).with_suffix(
+            ".json"
+        )
 
     def get_round_name(self, count: int) -> str:
         """returns the round-name by teams-count"""

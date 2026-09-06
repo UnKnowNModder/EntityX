@@ -7,6 +7,7 @@ from tournament.brackets import Brackets
 from tournament.webhook import Webhook
 from tournament.graphics import runner
 
+
 class Manager:
     """manager class for tournament matches."""
 
@@ -81,7 +82,9 @@ class Manager:
 
     def extract_from_team_players(self, team: str, key: str) -> list:
         """extracts the key from team dict players."""
-        return [member[key] for member in self.brackets.get_team(team_id=team)["members"]]
+        return [
+            member[key] for member in self.brackets.get_team(team_id=team)["members"]
+        ]
 
     def handle_player_ready(self, account_id: str) -> dict:
         """handles the player ready event."""
@@ -160,7 +163,9 @@ class Manager:
                 match_key=match_key, score1=score1, score2=score2
             )
 
-        self.send_results(winner, loser, series1, series2, f"{group_key}-{round_key}-{match_key}")
+        self.send_results(
+            winner, loser, series1, series2, f"{group_key}-{round_key}-{match_key}"
+        )
         self.end_tournament_session()
 
     def send_players_dashboard(self) -> None:
@@ -171,7 +176,14 @@ class Manager:
         }
         runner.run(data=data)
 
-    def send_results(self, winner: bascenev1.SessionTeam, loser: bascenev1.SessionTeam, series1: int, series2: int, key: str) -> None:
+    def send_results(
+        self,
+        winner: bascenev1.SessionTeam,
+        loser: bascenev1.SessionTeam,
+        series1: int,
+        series2: int,
+        key: str,
+    ) -> None:
         details = {
             "team1": self.active_match["teams"][0],
             "team2": self.active_match["teams"][1],

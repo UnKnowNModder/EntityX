@@ -98,7 +98,7 @@ class Registration(Storage):
     def generate_code(self) -> str:
         """generates a code for the registration."""
         db = self.read()
-        code = token_hex(16)
+        code = token_hex(4)
         if code in db["codes"]:
             return self.generate_code()
         return code
@@ -161,10 +161,18 @@ class Registration(Storage):
                 return True
         return False
 
-    def verify_account(self, account_id: str) -> bool:
-        """verifies the account with ballistica api."""
-        import requests
+    def change_uuid(self, discord_id: str, new_uuid: str) -> bool:
+        """changes the uuid of a player"""
+        db = self.read()
+        team_id = db["players"].get(discord_id)
+        if not team_id:
+            return False
 
-        url = f"https://account.thecardinal.workers.dev/{account_id}"
-        response = requests.get(url=url)
-        return response.status_code == 200
+        team = db["teams"].get(team_id)
+
+        for member in team["members"]:
+            if member["discord_id"] == discord_id:
+                member["device_uuid"] = new_uuid
+                self.commit(db)
+                return True
+        return False

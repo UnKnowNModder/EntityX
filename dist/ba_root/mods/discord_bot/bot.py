@@ -173,6 +173,38 @@ class Commands(commands.Cog):
             f"{'Opened' if option else 'closed'} the registrations."
         )
 
+    @app_commands.command(name="changeuuid")
+    @require(Authority.LEADER)
+    async def changeuuid(
+        self, interaction: Interaction, user: discord.Member, uuid: str
+    ) -> None:
+        """changes the uuid of the registered player"""
+        if not int(tournament.active_season):
+            await interaction.response.send_message(
+                "There is no tournament season opened currently.", ephemeral=True
+            )
+            return
+
+        if not tournament.are_registrations_open:
+            await interaction.response.send_message(
+                "Registrations have been closed", ephemeral=True
+            )
+            return
+
+        from tournament.registration import Registration
+
+        registration = Registration(season_id=tournament.active_season)
+        if not registration.is_registered(str(user.id)):
+            await interaction.response.send_message(
+                "He is not registered.", ephemeral=True
+            )
+            return
+
+        registration.change_uuid(discord_id=str(user.id), new_uuid=uuid)
+        await interaction.response.send_message(
+            f"Changed the uuid of {user.mention}'s account."
+        )
+
     @app_commands.command(name="startbrackets")
     @require(Authority.LEADER)
     async def startbrackets(self, interaction: Interaction) -> None:

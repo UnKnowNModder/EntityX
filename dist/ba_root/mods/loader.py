@@ -42,6 +42,7 @@ class Load(babase.Plugin):
 
         # the tournament manager.
         from tournament import manager
+
         manager.manager.initialize(season_id=tournament.tournament.active_season)
 
         # load patches.

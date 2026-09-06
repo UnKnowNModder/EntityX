@@ -1,4 +1,4 @@
-""" runs and generates the graphical images and sends to discord webhooks"""
+"""runs and generates the graphical images and sends to discord webhooks"""
 
 import subprocess
 import shutil
@@ -13,21 +13,23 @@ FILES = {
     "title.png": "https://i.imgur.com/bebmLoP.png",
     "logo.png": "https://i.imgur.com/3eKBCl5.png",
     "arial.ttf": "https://cdn.jsdelivr.net/gh/taveevut/Windows-10-Fonts-Default@master/arial.ttf",
-    "arialbd.ttf": "https://cdn.jsdelivr.net/gh/taveevut/Windows-10-Fonts-Default@master/arialbd.ttf"
+    "arialbd.ttf": "https://cdn.jsdelivr.net/gh/taveevut/Windows-10-Fonts-Default@master/arialbd.ttf",
 }
 
 GRAPHICS_DIR = MODS_DIR / "tournament" / "graphics"
 
+
 def download(url: str, path: str) -> bool:
-    """ downloads a file from a url to a path """
+    """downloads a file from a url to a path"""
     try:
         subprocess.run(["curl", "-fsSL", url, "-o", path], check=True)
         return True
     except subprocess.CalledProcessError:
         return False
 
+
 def verify_dependencies() -> bool:
-    """ verifies that all dependencies are present """
+    """verifies that all dependencies are present"""
     download_statuses = []
     for file, url in FILES.items():
         file_path = GRAPHICS_DIR / file
@@ -36,8 +38,9 @@ def verify_dependencies() -> bool:
 
     return all(download_statuses)
 
+
 def run(data: dict) -> None:
-    """ runs the script """
+    """runs the script"""
     if not verify_dependencies():
         print("Missing dependencies, or download failed.")
         return

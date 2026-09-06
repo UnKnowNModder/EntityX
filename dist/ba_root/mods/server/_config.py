@@ -35,7 +35,10 @@ class Config(Storage):
         self.path = project_root_dir / "mods_config.json"
         self.toml = project_root_dir / "config.toml"
         self.template_file = (
-            self.directory.parents[1] / "ba_data" / "python" / "mods_config_template.json"
+            self.directory.parents[1]
+            / "ba_data"
+            / "python"
+            / "mods_config_template.json"
         )
 
     def bootstrap(self) -> None:
